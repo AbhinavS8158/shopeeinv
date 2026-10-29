@@ -1,15 +1,4 @@
-Here is the complete **README.md** documentation in English for **ShopeeInv**:
-
-```markdown
-# ShopeeInv 🛍️🧾
-### Multi-Shop Billing & Inventory Management System (Offline-First SaaS)
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![SQLite](https://img.shields.io/badge/Local_DB-SQLite_(sqflite)-003B57?logo=sqlite&logoColor=white)](https://pub.dev/packages/sqflite)
-[![Firebase](https://img.shields.io/badge/Cloud_Sync-Firebase_Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
-[![Platform](https://img.shields.io/badge/Platforms-Android%20%7C%20Windows%20%7C%20Web-4CAF50)]()
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
+SHOPEEINV
 
 ---
 
