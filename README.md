@@ -1,134 +1,240 @@
-# ShopeeInv - Multi-Shop Billing & Inventory Management System 🛍️🧾
+Here is the complete **README.md** documentation in English for **ShopeeInv**:
 
-ഒരു സമ്പൂർണ്ണ **Multi-Shop Billing & Inventory Management System** (SaaS / Multi-Tenant Architecture). Flutter, SQLite (`sqflite`), Firebase എന്നിവ ഉപയോഗിച്ച് നിർമ്മിച്ച ഈ ആപ്ലിക്കേഷൻ **100% ഓഫ്‌ലൈനായും (Offline-First)** ഓൺലൈനായും (Cloud Sync) സുഗമമായി പ്രവർത്തിക്കുന്നു.
+```markdown
+# ShopeeInv 🛍️🧾
+### Multi-Shop Billing & Inventory Management System (Offline-First SaaS)
 
----
-
-## 🌟 പ്രധാന സവിശേഷതകൾ (Key Features)
-
-### 1. Multi-Shop / Multi-Tenant Architecture (മൾട്ടി-ഷോപ്പ് സംവിധാനം)
-- ആപ്ലിക്കേഷനിൽ രജിസ്റ്റർ ചെയ്യുമ്പോൾ തന്നെ **Shop Setup / Business Profile** സ്ക്രീൻ വഴി പുതിയ ഷോപ്പ് ചേർക്കാം.
-- ഷോപ്പിന്റെ പേര്, വിലാസം, ഫോൺ നമ്പർ, GSTIN, ലോഗോ, UPI ID, പ്രിന്റ് ഫോർമാറ്റ് എന്നിവ കസ്റ്റമൈസ് ചെയ്യാം.
-- ഒന്നിലധികം ഷോപ്പുകളുള്ള ഉടമകൾക്ക് ഒരൊറ്റ ആപ്പിൽ നിന്ന് തന്നെ ഷോപ്പുകൾ മാറിമാറി (Switch Shop) കൈകാര്യം ചെയ്യാം.
-- ഓരോ ഷോപ്പിലെയും പ്രൊഡക്ടുകൾ, സ്റ്റോക്ക്, ഉപഭോക്താക്കൾ, ബില്ലുകൾ എന്നിവ തികച്ചും സ്വതന്ത്രമായി (Isolated) സൂക്ഷിക്കപ്പെടുന്നു.
-
-### 2. Offline-First & Firebase Cloud Sync (ഓഫ്‌ലൈൻ & ഓൺലൈൻ സിങ്ക്)
-- **Local SQLite (`sqflite` & `sqflite_common_ffi`)**: ഇന്റർനെറ്റ് ഇല്ലാതെ തന്നെ അതിവേഗ ബില്ലിംഗ്, ബാർകോഡ് സ്കാനിംഗ്, സ്റ്റോക്ക് മാനേജ്മെന്റ്.
-- **Firebase Firestore & Auth Sync**: ഇന്റർനെറ്റ് കണക്റ്റിവിറ്റി ലഭ്യമാകുമ്പോൾ തനിയെ ക്ലൗഡിലേക്ക് സിങ്ക് ചെയ്യപ്പെടുന്നു (`SyncService`).
-- ഇന്റർനെറ്റ് തടസ്സപ്പെട്ടാലും ഒരു പ്രവർത്തനവും തടസ്സപ്പെടില്ല.
-
-### 3. Core Modules (പ്രധാന മോഡ്യൂളുകൾ)
-
-#### 📊 1. Dashboard
-- ഇന്നത്തെ ആകെ വിൽപ്പന (Today's Sales & Bill Count)
-- ഈ മാസത്തെ വിൽപ്പന സംഗ്രഹം (Monthly Sales)
-- ആകെ പ്രൊഡക്റ്റുകൾ & Low Stock Alerts
-- കസ്റ്റമർമാർ & അവരുടെ കുടിശ്ശിക (Total Customers & Udhar/Credit Balance)
-- പെട്ടെന്നുള്ള ആക്ഷൻ ബട്ടണുകൾ (New Bill / POS, Add Product, Stock In, Invoices)
-- Recent Invoices & ഒരു ക്ലിക്കിൽ Re-print സൗകര്യം.
-
-#### 📦 2. Product Management
-- പ്രൊഡക്റ്റിന്റെ പേര്, SKU, ബാർകോഡ് (Auto-generate or Scan)
-- കാറ്റഗറി, പർച്ചേസ് വില, സെല്ലിംഗ് വില, MRP
-- GST നിരക്കുകൾ (0%, 5%, 12%, 18%, 28%) & HSN/SAC കോഡ്
-- സ്റ്റോക്ക് അളവ് (Stock Quantity), കുറഞ്ഞ സ്റ്റോക്ക് മുന്നറിയിപ്പ് പരിധി (Low-stock Alert Limit)
-- അളവുകൾ (Units: Pcs, Kg, Gm, Ltr, Ml, Box, Meter, Packet etc.)
-- സപ്ലയർ വിവരങ്ങൾ, എക്സ്പയറി തീയതി (Expiry Date)
-
-#### 💻 3. Point of Sale (POS) & Fast Billing
-- ബാർകോഡ് സ്കാനർ ഇൻപുട്ട് (കീബോർഡ് ബാർകോഡ് സ്കാനറോ ക്യാമറയോ ഉപയോഗിക്കാം)
-- അതിവേഗ സെർച്ച് ബാറും കാറ്റഗറി ഫിൽട്ടറുകളും
-- കാർട്ടിലേക്ക് പ്രൊഡക്റ്റുകൾ ചേർക്കൽ, അളവ് (+ / -) മാറ്റൽ
-- ലൈൻ ഡിസ്കൗണ്ടും ഓവറോൾ ഡിസ്കൗണ്ടും
-- GST ഓട്ടോമാറ്റിക് കണക്കുകൂട്ടൽ (CGST + SGST) & Round Off
-- പേയ്‌മെന്റ് മോഡുകൾ: **Cash**, **UPI QR**, **Card**, **Credit (Udhar)**
-- **ഡൈനാമിക് UPI QR Code**: ബിൽ തുകയോടെയുള്ള ഷോപ്പിന്റെ സ്വന്തം UPI QR കോഡ് സ്ക്രീനിൽ തന്നെ കാണിച്ച് കസ്റ്റമറിൽ നിന്ന് പണം സ്വീകരിക്കാം.
-
-#### 🖨️ 4. Custom Invoice & Printing
-- ഷോപ്പിന്റെ പേര്, GSTIN, ഫോൺ, വിലാസം എന്നിവയോടെയുള്ള ബില്ലുകൾ
-- **A4 Full GST Tax Invoice**: എല്ലാ നിയമപ്രകാരമുള്ള GST വിവരങ്ങൾ, HSN കോഡുകൾ, ബാങ്ക്/UPI വിവരങ്ങൾ, ടേംസ് & കണ്ടീഷൻസ്, ഒപ്പ് രേഖപ്പെടുത്താനുള്ള സ്ഥലം എന്നിവ അടങ്ങിയത്.
-- **Thermal Receipt (58mm & 80mm)**: POS തെർമൽ പ്രിന്ററുകൾക്കായി പ്രത്യേകം തയ്യാറാക്കിയ ഫോർമാറ്റ്.
-- PDF ഡൗൺലോഡ് ചെയ്യാനും WhatsApp / ഇമെയിൽ വഴി ഷെയർ ചെയ്യാനുമുള്ള സൗകര്യം.
-
-#### 📈 5. Inventory & Stock Management
-- **Stock In / Purchase Entry**: പുതിയ സ്റ്റോക്ക് പർച്ചേസ് ചെയ്യുമ്പോൾ അളവ് വർദ്ധിപ്പിക്കൽ.
-- ബില്ലിംഗ് നടക്കുമ്പോൾ **ഓട്ടോമാറ്റിക് സ്റ്റോക്ക് കുറയ്ക്കൽ (Auto Stock Deduction)**.
-- **Stock Adjustment**: കേടുപാടുകൾ സംഭവിച്ചതോ (Damaged), കാലാവധി കഴിഞ്ഞതോ (Expired), നഷ്ടപ്പെട്ടതോ ആയ സ്റ്റോക്കുകൾ കാരണം സഹിതം ക്രമീകരിക്കാം.
-- **Stock History / Audit Log**: ഓരോ പ്രൊഡക്റ്റിലും ഉണ്ടായ സ്റ്റോക്ക് വ്യതിയാനങ്ങളുടെ സമ്പൂർണ്ണ വിവരങ്ങൾ.
-
-#### 👥 6. Customer & Udhar (Credit) Khata
-- കസ്റ്റമർമാരുടെ വിവരങ്ങൾ (പേര്, ഫോൺ, GSTIN, വിലാസം).
-- കുടിശ്ശിക (Credit / Udhar balance) ട്രാക്കിംഗ്.
-- കുടിശ്ശിക തുക അടയ്ക്കുമ്പോൾ 'Collect Payment' വഴി അക്കൗണ്ട് അപ്‌ഡേറ്റ് ചെയ്യാം.
+[![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![SQLite](https://img.shields.io/badge/Local_DB-SQLite_(sqflite)-003B57?logo=sqlite&logoColor=white)](https://pub.dev/packages/sqflite)
+[![Firebase](https://img.shields.io/badge/Cloud_Sync-Firebase_Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
+[![Platform](https://img.shields.io/badge/Platforms-Android%20%7C%20Windows%20%7C%20Web-4CAF50)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
 
 ---
 
-## 🚀 പ്രോജക്റ്റ് റൺ ചെയ്യുന്ന വിധം (How to Run)
+## 📌 Overview
 
-### 1. ഡിപെൻഡൻസികൾ പരിശോധിക്കുക
+**ShopeeInv** is a production-grade **Multi-Shop Billing and Inventory Management System** built with **Flutter**, **SQLite (`sqflite`)**, and **Firebase**. 
+
+Rather than being tied to a single specific retail store, ShopeeInv is engineered as a customizable multi-tenant SaaS solution suitable for diverse businesses—including supermarkets, grocery stores, apparel outlets, electronics retailers, bakeries, and wholesale businesses.
+
+The application features a **100% Offline-First architecture** using local SQLite for lightning-fast billing with zero latency, alongside an automated **Firebase Cloud Sync engine** that seamlessly replicates data across devices when an internet connection is available.
+
+---
+
+## 🏗️ System Architecture
+
+```
+                    ┌────────────────────────────────────────────────────────┐
+                    │             ShopeeInv System Architecture              │
+                    └───────────────────────────┬────────────────────────────┘
+                                                │
+         ┌──────────────────────────────────────┼──────────────────────────────────────┐
+         ▼                                      ▼                                      ▼
+   📱 Frontend (Flutter)               💾 Local DB (SQLite)                   ☁️ Cloud (Firebase)
+   - Multi-Tenant Shop Isolation       - Zero-Latency POS Billing             - Cloud Firestore Collections
+   - Reactive POS & Live Cart          - Instant Stock Decrements             - Multi-Device Synchronization
+   - A4 GST & Thermal PDF Printing     - Offline Customer & Stock Logs        - Automatic Background Sync
+   - Dynamic UPI QR Generation         - Cross-Platform (`sqflite_ffi`)       - Offline Conflict Resolution
+```
+
+---
+
+## ✨ Key Features & Modules
+
+### 1. 🏪 Multi-Shop / Multi-Tenant Isolation
+- **Shop Setup & Profile Onboarding**: Automatically prompts new store owners upon first launch to configure their store profile:
+  - Business Name & Owner Details
+  - Contact Information (Phone, Email, Full Street Address, City, State, PIN)
+  - **GSTIN Number** (formatted and verified for official tax invoices)
+  - **Shop UPI ID** (for generating dynamic payment QR codes on screen and on printed bills)
+  - Customizable Invoice Prefix (e.g., `INV-`)
+  - Preferred Default Print Format (`A4`, `Thermal 58mm`, or `Thermal 80mm`)
+  - Terms & Conditions / Receipt Footer Notes
+- **Multi-Store Switching**: Manage multiple shops or branches from a single application. Easily toggle between stores with full data isolation for products, customers, stock, and bills.
+
+### 2. ⚡ Offline-First Architecture & Cloud Sync
+- **Local SQLite Storage (`sqflite` & `sqflite_common_ffi`)**: All operations—billing, inventory deduction, product edits, customer credit tracking—execute instantly in the local database with zero reliance on network availability.
+- **Smart Cloud Synchronization (`SyncService`)**: Monitors network status (`connectivity_plus`) and automatically synchronizes unsynced local entities (`isSynced = 0`) with Firebase Firestore in the background.
+- **Graceful Offline Degradation**: Runs smoothly whether offline or online without crashes or freezes.
+
+### 3. 📊 Dashboard & Business Analytics
+- **Today's Sales**: Real-time sales total (₹) and bill count for the current day.
+- **Monthly Revenue**: Aggregate revenue metrics for the current calendar month.
+- **Inventory Overview**: Total registered products and real-time **Low Stock Alert counter**.
+- **Customer Khata Overview**: Total customers and total outstanding credit (Udhar) balance.
+- **Quick Action Dock**: One-tap access to POS Billing, Product Catalog, Stock-In, and Invoices.
+- **Recent Bills List**: Quick view of recent invoices with payment status badges and instant re-print shortcuts.
+
+### 4. 📦 Product Management & Barcode Engine
+- Product Name, Category, SKU, and **Barcode** support.
+- **Built-in Barcode Generator**: Automatically generate 12-digit barcodes or assign existing supplier barcodes.
+- Pricing structure: Purchase Price, Selling Price, and MRP.
+- **GST Tax Slabs**: 0%, 5%, 12%, 18%, 28% with HSN/SAC code tracking.
+- Units of Measurement: `Pcs`, `Kg`, `Gm`, `Ltr`, `Ml`, `Box`, `Meter`, `Packet`, `Set`.
+- Stock tracking: Current stock levels with configurable **Low Stock Alert limits**.
+- Supplier details and Expiry Date tracking.
+
+### 5. 💻 Point of Sale (POS) & Fast Billing
+- **Hardware Barcode Scanner Support**: Scan barcodes directly with USB/Bluetooth handheld barcode scanners to add items to the cart instantly.
+- **Instant Product Search**: Real-time search by product name, SKU, or category filter chips.
+- **Live Cart System**:
+  - Quantity steppers (`+` / `-`) and unit-aware inputs.
+  - Item-level discounts and overall bill discounts.
+  - Automatic tax calculations: Subtotal, CGST, SGST, Round-Off, and Grand Total.
+- **Payment Modes**:
+  - **Cash** (with cash tendered calculation)
+  - **UPI QR** (Instant payment collection)
+  - **Card**
+  - **Credit / Udhar** (Logs debt directly to customer's Khata)
+- **Dynamic UPI Payment QR**: Displays a generated UPI QR code on screen containing the shop's UPI ID and the exact bill amount, allowing customers to scan and pay via Google Pay, PhonePe, Paytm, or any UPI app.
+
+### 6. 🖨️ Custom Invoice & Receipt Printing
+- **A4 Full GST Tax Invoice**: Compliant with GST guidelines—includes Seller GSTIN, Buyer Details, HSN table, CGST/SGST breakdown, Bank/UPI details, Terms & Conditions, and Authorized Signatory.
+- **Thermal POS Receipt (58mm & 80mm)**: Optimized roll layout with centered business header, line items, tax breakdown, and bottom UPI payment QR.
+- **Horizontally Scrollable Printer Selector**: Easily preview and toggle between formats without screen overflow.
+- Direct printing to USB, Bluetooth, and network printers, plus PDF sharing via WhatsApp or email.
+
+### 7. 📈 Inventory & Stock Audit Management
+- **Stock-In / Purchase Entry**: Add incoming stock batches with supplier reference numbers and cost tracking.
+- **Automatic Stock Decrement**: Deducts item stock in SQLite immediately upon invoice completion.
+- **Stock Adjustment & Write-offs**: Adjust stock for damaged goods, expired products, physical audit discrepancies, or customer returns.
+- **Stock Transaction History Log**: Detailed audit log recording every inventory change, change type, timestamp, and reference bill number.
+
+### 8. 👥 Customer & Credit (Udhar) Khata
+- Customer master database with phone numbers, addresses, and GSTIN.
+- Real-time **Credit (Udhar) Balance Tracking**.
+- **Collect Payment**: Record customer partial or full debt payments to update balances automatically.
+
+---
+
+## 📂 Project Directory Structure
+
+```
+c:\Users\abhin\SHOPEEINV\
+├── lib\
+│   ├── core\
+│   │   ├── database\
+│   │   │   ├── app_database.dart       # SQLite Database (Mobile & Desktop FFI)
+│   │   └── sync_service.dart       # Background Firebase Sync Engine
+│   │   ├── models\
+│   │   │   ├── shop_profile.dart       # Multi-tenant Shop Profile model
+│   │   │   ├── product.dart            # Product, SKU, Barcode, GST model
+│   │   │   ├── customer.dart           # Customer & Udhar Credit model
+│   │   │   ├── invoice.dart            # Invoice & InvoiceItem model
+│   │   │   └── stock_log.dart          # Stock-in & Deduction Audit Log model
+│   │   ├── services\
+│   │   │   └── invoice_pdf_service.dart# A4 GST & Thermal (58/80mm) PDF Engine
+│   │   └── theme\
+│   │       └── app_theme.dart          # Modern POS Color Palette & Styling
+│   ├── providers\
+│   │   ├── shop_provider.dart          # Active Shop & Multi-Shop Switcher
+│   │   ├── product_provider.dart       # Inventory CRUD & Stock Updates
+│   │   ├── cart_provider.dart          # POS Cart Calculations & Taxes
+│   │   ├── billing_provider.dart       # Invoicing, Sales Deductions & Stats
+│   │   └── customer_provider.dart      # Customer Khata & Dues State
+│   ├── screens\
+│   │   ├── auth\
+│   │   │   └── shop_setup_screen.dart  # Business Profile & Onboarding Screen
+│   │   ├── dashboard\
+│   │   │   └── dashboard_screen.dart   # Dashboard with Metrics & Recent Bills
+│   │   ├── pos\
+│   │   │   ├── pos_screen.dart         # Point of Sale Billing Screen
+│   │   │   ├── invoice_preview_screen.dart # Interactive PDF Preview & Print
+│   │   │   └── upi_payment_dialog.dart # Dynamic UPI QR Payment Modal
+│   │   ├── products\
+│   │   │   ├── product_list_screen.dart# Product Inventory & Barcode Views
+│   │   │   └── add_edit_product_screen.dart # Product Add/Edit Form
+│   │   ├── inventory\
+│   │   │   └── stock_management_screen.dart # Stock In, Adjustments & Audit
+│   │   ├── invoices\
+│   │   │   └── invoice_history_screen.dart  # Sales Invoices & Reprinting
+│   │   ├── customers\
+│   │   │   └── customer_list_screen.dart    # Customer List & Udhar Collection
+│   │   └── settings\
+│   │       └── shop_settings_screen.dart    # Multi-Shop Switcher & Cloud Sync
+│   └── main.dart                       # App Entry Point & Initializer
+├── test\
+│   └── widget_test.dart                # Unit & Calculation Tests
+└── pubspec.yaml                        # Dependencies Configuration
+```
+
+---
+
+## 🛠️ Technology Stack & Dependencies
+
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend Framework** | [Flutter 3.41+](https://flutter.dev) | Cross-platform UI toolkit |
+| **Language** | [Dart 3.11+](https://dart.dev) | Modern client-optimized language |
+| **State Management** | [Provider](https://pub.dev/packages/provider) | Clean, reactive state management |
+| **Local Database** | [sqflite](https://pub.dev/packages/sqflite) & [sqflite_common_ffi](https://pub.dev/packages/sqflite_common_ffi) | SQLite engine for mobile and desktop |
+| **Cloud Database** | [cloud_firestore](https://pub.dev/packages/cloud_firestore) | Real-time Firebase cloud database |
+| **Document Generation** | [pdf](https://pub.dev/packages/pdf) | Pure Dart PDF document generator |
+| **Hardware Printing** | [printing](https://pub.dev/packages/printing) | Native print dialogs & rasterization |
+| **Barcode & QR** | [barcode_widget](https://pub.dev/packages/barcode_widget) & [qr_flutter](https://pub.dev/packages/qr_flutter) | High-resolution barcode and UPI QR rendering |
+| **Connectivity** | [connectivity_plus](https://pub.dev/packages/connectivity_plus) | Network state detection |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.30+ recommended)
+- Android Studio / VS Code with Flutter extension
+- Android Device / Emulator or Windows PC
+
+### 2. Clone and Install Dependencies
 ```bash
+# Navigate to project directory
+cd c:\Users\abhin\SHOPEEINV
+
+# Fetch all packages
 flutter pub get
 ```
 
-### 2. ആപ്ലിക്കേഷൻ റൺ ചെയ്യുക
-- **Android ഡിവൈസിലോ എമുലേറ്ററിലോ**:
-  ```bash
-  flutter run -d android
-  ```
-- **Windows Desktop ആപ്പായി**:
-  ```bash
-  flutter run -d windows
-  ```
-- **Chrome ബ്രൗസറിൽ**:
-  ```bash
-  flutter run -d chrome
-  ```
+### 3. Run Unit Tests
+Validate models and financial calculations:
+```bash
+flutter test
+```
+
+### 4. Launch Application
+
+#### On Android Device:
+```bash
+flutter run -d android
+# Or specify a device ID:
+flutter run -d <device_id>
+```
+
+#### On Windows Desktop:
+```bash
+flutter run -d windows
+```
+
+#### In Google Chrome:
+```bash
+flutter run -d chrome
+```
 
 ---
 
-## 📁 പ്രോജക്റ്റ് ഫോൾഡർ ഘടന (Folder Structure)
+## ☁️ Firebase Cloud Sync Setup (Optional)
 
+The system works out-of-the-box in **100% offline mode** using local SQLite. To enable multi-device cloud synchronization via Firebase:
+
+1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
+2. Register an Android application with package name `com.shopeeinv.shopeeinv`.
+3. Download `google-services.json` and place it in the `android/app/` folder.
+4. Enable **Cloud Firestore** in test mode or with appropriate security rules.
+5. In the app, navigate to **Settings -> Offline Database & Cloud Sync -> Sync Now**. The system will push local records and synchronize data seamlessly.
+
+---
+
+## 📄 License
+This project is licensed under the MIT License.
 ```
-lib/
-├── core/
-│   ├── database/
-│   │   ├── app_database.dart       # SQLite Database (Mobile & Desktop)
-│   │   └── sync_service.dart       # Firebase Cloud Sync Engine
-│   ├── models/
-│   │   ├── shop_profile.dart       # Multi-tenant Shop Profile model
-│   │   ├── product.dart            # Product, SKU, Barcode, GST model
-│   │   ├── customer.dart           # Customer & Udhar model
-│   │   ├── invoice.dart            # Invoice & InvoiceItem model
-│   │   └── stock_log.dart          # Stock In / Deduction Audit Log model
-│   ├── services/
-│   │   └── invoice_pdf_service.dart# A4 GST & Thermal (58/80mm) PDF Generator
-│   └── theme/
-│       └── app_theme.dart          # Modern POS UI Theme & Color Palette
-├── providers/
-│   ├── shop_provider.dart          # Multi-shop state & active shop switching
-│   ├── product_provider.dart       # Product inventory state & CRUD
-│   ├── cart_provider.dart          # POS cart & GST calculations
-│   ├── billing_provider.dart       # Invoicing, stock decrement & sales stats
-│   └── customer_provider.dart      # Customer & Udhar state
-├── screens/
-│   ├── auth/
-│   │   └── shop_setup_screen.dart  # Business Profile & Onboarding Screen
-│   ├── dashboard/
-│   │   └── dashboard_screen.dart   # Main Dashboard with metrics & recent bills
-│   ├── pos/
-│   │   ├── pos_screen.dart         # Point of Sale Billing Screen
-│   │   ├── invoice_preview_screen.dart # Interactive PDF Preview & Print
-│   │   └── upi_payment_dialog.dart # Dynamic UPI QR Payment Dialog
-│   ├── products/
-│   │   ├── product_list_screen.dart# Product inventory list & barcodes
-│   │   └── add_edit_product_screen.dart # Add / Edit Product form
-│   ├── inventory/
-│   │   └── stock_management_screen.dart # Stock In, Adjustments & Audit Logs
-│   ├── invoices/
-│   │   └── invoice_history_screen.dart  # Past Bills & Reprinting
-│   ├── customers/
-│   │   └── customer_list_screen.dart    # Customer Khata & Dues
-│   └── settings/
-│       └── shop_settings_screen.dart    # Multi-shop switcher & Cloud Sync
-└── main.dart                       # Entry point with MultiProvider & Initializer
-```
+
+The file has also been saved directly to your workspace at [README.md](file:///c:/Users/abhin/SHOPEEINV/README.md).
