@@ -276,17 +276,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: TextFormField(
-                          controller: _purchasePriceController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Purchase Price (Rs.)',
-                            prefixIcon: Icon(Icons.shopping_bag_outlined),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
                           controller: _mrpController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: const InputDecoration(
@@ -296,6 +285,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _purchasePriceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Purchase Price (Rs.)',
+                      prefixIcon: Icon(Icons.shopping_bag_outlined),
+                    ),
                   ),
                   const SizedBox(height: 16),
 

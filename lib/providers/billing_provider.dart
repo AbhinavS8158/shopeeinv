@@ -172,6 +172,42 @@ class BillingProvider extends ChangeNotifier {
     }
   }
 
+  // Get sales collected within a specific time window (e.g. cash session)
+  double getSalesSince(DateTime since) {
+    return _invoices
+        .where((inv) => inv.invoiceDate.isAfter(since) || inv.invoiceDate.isAtSameMomentAs(since))
+        .fold(0.0, (sum, inv) => sum + inv.paidAmount);
+  }
+
+  // Get cash sales specifically since session started
+  double getCashSalesSince(DateTime since) {
+    return _invoices
+        .where((inv) =>
+            (inv.invoiceDate.isAfter(since) || inv.invoiceDate.isAtSameMomentAs(since)) &&
+            inv.paymentMode.toLowerCase() == 'cash')
+        .fold(0.0, (sum, inv) => sum + inv.paidAmount);
+  }
+
+  // Get UPI sales specifically since session started
+  double getUpiSalesSince(DateTime since) {
+    return _invoices
+        .where((inv) =>
+            (inv.invoiceDate.isAfter(since) || inv.invoiceDate.isAtSameMomentAs(since)) &&
+            inv.paymentMode.toLowerCase() == 'upi')
+        .fold(0.0, (sum, inv) => sum + inv.paidAmount);
+  }
+
+  // Total sales for today
+  double get todayCollectedAmount {
+    final now = DateTime.now();
+    return _invoices
+        .where((inv) =>
+            inv.invoiceDate.year == now.year &&
+            inv.invoiceDate.month == now.month &&
+            inv.invoiceDate.day == now.day)
+        .fold(0.0, (sum, inv) => sum + inv.paidAmount);
+  }
+
   // Dashboard Stats
   double get todaySalesAmount {
     final now = DateTime.now();

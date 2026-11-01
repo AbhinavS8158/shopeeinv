@@ -33,8 +33,9 @@ class AppDatabase {
       return await databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 1,
+          version: 2,
           onCreate: _createDB,
+          onUpgrade: _upgradeDB,
         ),
       );
     } else {
@@ -43,8 +44,9 @@ class AppDatabase {
       final path = join(dbPath, filePath);
       return await openDatabase(
         path,
-        version: 1,
+        version: 2,
         onCreate: _createDB,
+        onUpgrade: _upgradeDB,
       );
     }
   }
@@ -174,6 +176,44 @@ class AppDatabase {
     await db.execute('CREATE INDEX idx_products_barcode ON products(barcode)');
     await db.execute('CREATE INDEX idx_invoices_shop ON invoices(shopId)');
     await db.execute('CREATE INDEX idx_customers_shop ON customers(shopId)');
+
+    // 6. Cash Register Sessions Table
+    await db.execute('''
+      CREATE TABLE cash_register_sessions (
+        id TEXT PRIMARY KEY,
+        shopId TEXT NOT NULL,
+        date TEXT NOT NULL,
+        openingAmount REAL NOT NULL,
+        openedAt TEXT NOT NULL,
+        closingAmount REAL,
+        closedAt TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        notes TEXT,
+        isSynced INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('CREATE INDEX idx_cash_sessions_shop_date ON cash_register_sessions(shopId, date)');
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cash_register_sessions (
+          id TEXT PRIMARY KEY,
+          shopId TEXT NOT NULL,
+          date TEXT NOT NULL,
+          openingAmount REAL NOT NULL,
+          openedAt TEXT NOT NULL,
+          closingAmount REAL,
+          closedAt TEXT,
+          status TEXT NOT NULL DEFAULT 'open',
+          notes TEXT,
+          isSynced INTEGER DEFAULT 0
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_cash_sessions_shop_date ON cash_register_sessions(shopId, date)');
+    }
   }
 
   Future close() async {

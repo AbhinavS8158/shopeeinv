@@ -117,29 +117,26 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                   color: isPaid ? AppTheme.success : AppTheme.warning,
                                 ),
                               ),
-                              title: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    inv.invoiceNumber,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    currency.format(inv.grandTotal),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: AppTheme.primary,
-                                    ),
-                                  ),
-                                ],
+                              title: Text(
+                                inv.invoiceNumber,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 4),
-                                  Text('${inv.customerName} | ${dateFormat.format(inv.invoiceDate)}'),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    inv.customerName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                  ),
                                   const SizedBox(height: 2),
+                                  Text(
+                                    dateFormat.format(inv.invoiceDate),
+                                    style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                                  ),
+                                  const SizedBox(height: 4),
                                   Row(
                                     children: [
                                       Container(
@@ -166,7 +163,22 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                   ),
                                 ],
                               ),
-                              trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    currency.format(inv.grandTotal),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: AppTheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textSecondary),
+                                ],
+                              ),
                             ),
                           );
                         },

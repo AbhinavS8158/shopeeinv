@@ -57,7 +57,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            const Icon(Icons.storefront, color: Colors.white, size: 22),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/icon/app_logo.png',
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.storefront, color: Colors.white, size: 22),
+              ),
+            ),
             const SizedBox(width: 8),
             Text(
               currentShop?.shopName ?? 'ShopeeInv Billing',

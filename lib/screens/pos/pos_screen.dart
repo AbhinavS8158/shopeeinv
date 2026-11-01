@@ -191,9 +191,9 @@ class _PosScreenState extends State<PosScreen> {
                 phone: phoneCtrl.text.trim(),
                 gstin: gstinCtrl.text.trim().toUpperCase(),
               );
-              await Provider.of<CustomerProvider>(context, listen: false).saveCustomer(customer);
-              setState(() => _selectedCustomer = customer);
+              final saved = await Provider.of<CustomerProvider>(context, listen: false).saveCustomer(customer);
               if (ctx.mounted) Navigator.pop(ctx);
+              setState(() => _selectedCustomer = saved ?? customer);
             },
             child: const Text('Save Customer'),
           ),

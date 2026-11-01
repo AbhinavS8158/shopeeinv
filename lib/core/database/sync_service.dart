@@ -9,6 +9,7 @@ import '../models/product.dart';
 import '../models/customer.dart';
 import '../models/invoice.dart';
 import '../models/stock_log.dart';
+import '../models/cash_register_session.dart';
 import 'app_database.dart';
 
 class SyncService {
@@ -77,7 +78,8 @@ class SyncService {
       final p3 = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM invoices WHERE isSynced = 0')) ?? 0;
       final p4 = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM shops WHERE isSynced = 0')) ?? 0;
       final p5 = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM stock_logs WHERE isSynced = 0')) ?? 0;
-      count = p1 + p2 + p3 + p4 + p5;
+      final p6 = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM cash_register_sessions WHERE isSynced = 0')) ?? 0;
+      count = p1 + p2 + p3 + p4 + p5 + p6;
       _pendingSyncCount = count;
       pendingNotifier.value = count;
     } catch (e) {

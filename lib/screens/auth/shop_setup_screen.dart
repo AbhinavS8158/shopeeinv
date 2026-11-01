@@ -159,7 +159,16 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.storefront, color: AppTheme.primary, size: 32),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/icon/app_logo.png',
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.storefront, color: AppTheme.primary, size: 32),
+                          ),
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -286,6 +295,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                   Row(
                     children: [
                       Expanded(
+                        flex: 5,
                         child: TextFormField(
                           controller: _cityController,
                           decoration: const InputDecoration(labelText: 'City / Town'),
@@ -293,13 +303,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextFormField(
-                          controller: _stateController,
-                          decoration: const InputDecoration(labelText: 'State'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                        flex: 5,
                         child: TextFormField(
                           controller: _pincodeController,
                           keyboardType: TextInputType.number,
@@ -308,42 +312,49 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _stateController,
+                    decoration: const InputDecoration(labelText: 'State'),
+                  ),
                   const SizedBox(height: 24),
 
                   // Invoice Customization
                   _buildSectionTitle('Invoice & Print Format'),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _prefixController,
-                          decoration: const InputDecoration(
-                            labelText: 'Invoice Number Prefix',
-                            hintText: 'INV-',
-                            prefixIcon: Icon(Icons.tag),
-                          ),
-                        ),
+                  TextFormField(
+                    controller: _prefixController,
+                    decoration: const InputDecoration(
+                      labelText: 'Invoice Number Prefix',
+                      hintText: 'INV-',
+                      prefixIcon: Icon(Icons.tag),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: _invoiceType,
+                    decoration: const InputDecoration(
+                      labelText: 'Default Print Layout',
+                      prefixIcon: Icon(Icons.print),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'a4',
+                        child: Text('A4 Standard GST Invoice', overflow: TextOverflow.ellipsis),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _invoiceType,
-                          decoration: const InputDecoration(
-                            labelText: 'Default Print Layout',
-                            prefixIcon: Icon(Icons.print),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'a4', child: Text('A4 Standard GST Invoice')),
-                            DropdownMenuItem(value: 'thermal_58', child: Text('Thermal Receipt (58mm)')),
-                            DropdownMenuItem(value: 'thermal_80', child: Text('Thermal Receipt (80mm)')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _invoiceType = val);
-                          },
-                        ),
+                      DropdownMenuItem(
+                        value: 'thermal_58',
+                        child: Text('Thermal Receipt (58mm)', overflow: TextOverflow.ellipsis),
+                      ),
+                      DropdownMenuItem(
+                        value: 'thermal_80',
+                        child: Text('Thermal Receipt (80mm)', overflow: TextOverflow.ellipsis),
                       ),
                     ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _invoiceType = val);
+                    },
                   ),
                   const SizedBox(height: 16),
 

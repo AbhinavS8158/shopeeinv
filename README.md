@@ -1,12 +1,20 @@
-SHOPEEINV
+# ShopeeInv 🛍️🧾
+### Multi-Shop Billing & Inventory Management System (Offline-First SaaS)
+
+[![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![SQLite](https://img.shields.io/badge/Local_DB-SQLite_(sqflite)-003B57?logo=sqlite&logoColor=white)](https://pub.dev/packages/sqflite)
+[![Firebase](https://img.shields.io/badge/Cloud_Sync-Firebase_Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
+[![Platform](https://img.shields.io/badge/Platforms-Android%20%7C%20Windows%20%7C%20Web-4CAF50)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
 
 ---
 
 ## 📌 Overview
 
-**ShopeeInv** is a production-grade **Multi-Shop Billing and Inventory Management System** built with **Flutter**, **SQLite (`sqflite`)**, and **Firebase**. 
+**ShopeeInv** is a comprehensive, production-grade **Multi-Shop Billing and Inventory Management System** built with **Flutter**, **SQLite (`sqflite`)**, and **Firebase**. 
 
-Rather than being tied to a single specific retail store, ShopeeInv is engineered as a customizable multi-tenant SaaS solution suitable for diverse businesses—including supermarkets, grocery stores, apparel outlets, electronics retailers, bakeries, and wholesale businesses.
+Rather than being tied to a single specific retail outlet, ShopeeInv is engineered as a customizable SaaS solution suitable for diverse businesses—including supermarkets, grocery stores, apparel outlets, electronics retailers, bakeries, and wholesale businesses.
 
 The application features a **100% Offline-First architecture** using local SQLite for lightning-fast billing with zero latency, alongside an automated **Firebase Cloud Sync engine** that seamlessly replicates data across devices when an internet connection is available.
 
@@ -106,7 +114,7 @@ c:\Users\abhin\SHOPEEINV\
 │   ├── core\
 │   │   ├── database\
 │   │   │   ├── app_database.dart       # SQLite Database (Mobile & Desktop FFI)
-│   │   └── sync_service.dart       # Background Firebase Sync Engine
+│   │   │   └── sync_service.dart       # Background Firebase Sync Engine
 │   │   ├── models\
 │   │   │   ├── shop_profile.dart       # Multi-tenant Shop Profile model
 │   │   │   ├── product.dart            # Product, SKU, Barcode, GST model
@@ -184,7 +192,7 @@ flutter pub get
 ```
 
 ### 3. Run Unit Tests
-Validate models and financial calculations:
+Ensure models and business calculation logic are validated:
 ```bash
 flutter test
 ```
@@ -224,6 +232,3 @@ The system works out-of-the-box in **100% offline mode** using local SQLite. To 
 
 ## 📄 License
 This project is licensed under the MIT License.
-```
-
-The file has also been saved directly to your workspace at [README.md](file:///c:/Users/abhin/SHOPEEINV/README.md).
