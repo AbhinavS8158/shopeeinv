@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../pos/cash_register_dialog.dart';
+import '../../providers/cash_register_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/database/sync_service.dart';
@@ -172,6 +174,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
 
+                  // Cash Register Daily Summary Banner
+                  Consumer<CashRegisterProvider>(
+                    builder: (ctx, cashProvider, _) {
+                      final session = cashProvider.currentSession;
+                      final isOpen = cashProvider.hasOpenSession;
+                      final openedAt = session?.openedAt ?? DateTime.now();
+                      final sales = billingProvider.getSalesSince(openedAt);
+                      final cashSales = billingProvider.getCashSalesSince(openedAt);
+                      final opening = session?.openingAmount ?? 0.0;
+                      final closingTotal = opening + sales;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isOpen ? Colors.green.shade50 : Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isOpen ? Colors.green.shade300 : Colors.amber.shade300,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isOpen ? Colors.green.shade100 : Colors.amber.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isOpen ? Icons.point_of_sale : Icons.lock_clock,
+                                color: isOpen ? Colors.green.shade800 : Colors.amber.shade900,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        isOpen ? "TODAY'S CASH REGISTER: OPEN" : "CASH REGISTER: CLOSED / NOT OPENED",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isOpen ? Colors.green.shade900 : Colors.amber.shade900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  if (isOpen)
+                                    Text(
+                                      "Opening: ${currency.format(opening)}  •  Bills: +${currency.format(sales)}  •  Closing Total: ${currency.format(closingTotal)}",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green.shade900,
+                                      ),
+                                    )
+                                  else
+                                    const Text(
+                                      "Tap 'Open Register' to enter opening cash float before starting POS billing.",
+                                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isOpen ? Colors.green.shade700 : AppTheme.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              ),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const CashRegisterDialog(),
+                                ).then((_) => _refreshAll());
+                              },
+                              child: Text(
+                                isOpen ? 'VIEW / CLOSE' : 'OPEN REGISTER',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  
                   // Top Metrics Cards
                   _buildMetricsGrid(
                     todaySales: billingProvider.todaySalesAmount,

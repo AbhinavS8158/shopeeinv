@@ -6,6 +6,7 @@ import 'core/database/sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/billing_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/cash_register_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/shop_provider.dart';
@@ -43,6 +44,7 @@ class ShopeeInvApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => BillingProvider()),
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
+        ChangeNotifierProvider(create: (_) => CashRegisterProvider()),
       ],
       child: MaterialApp(
         title: 'ShopeeInv - Multi-Shop Billing & Inventory',

@@ -11,6 +11,8 @@ import '../../providers/product_provider.dart';
 import '../../providers/shop_provider.dart';
 import 'invoice_preview_screen.dart';
 import 'upi_payment_dialog.dart';
+import 'cash_register_dialog.dart';
+import '../../providers/cash_register_provider.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});

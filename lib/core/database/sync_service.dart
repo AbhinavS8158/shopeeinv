@@ -180,6 +180,19 @@ class SyncService {
         await db.update('stock_logs', {'isSynced': 1}, where: 'id = ?', whereArgs: [log.id]);
       }
 
+      // 6. Sync Cash Register Sessions
+      final unsyncedSessions = await db.query('cash_register_sessions', where: 'isSynced = 0');
+      for (final row in unsyncedSessions) {
+        final session = CashRegisterSession.fromMap(row);
+        await firestore
+            .collection('shops')
+            .doc(session.shopId)
+            .collection('cash_sessions')
+            .doc(session.id)
+            .set(session.toMap(), SetOptions(merge: true));
+        await db.update('cash_register_sessions', {'isSynced': 1}, where: 'id = ?', whereArgs: [session.id]);
+      }
+
       _lastSyncTime = DateTime.now();
       await updatePendingCount();
       return true;
