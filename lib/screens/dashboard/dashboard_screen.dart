@@ -196,71 +196,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             width: 1.2,
                           ),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isOpen ? Colors.green.shade100 : Colors.amber.shade100,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                isOpen ? Icons.point_of_sale : Icons.lock_clock,
-                                color: isOpen ? Colors.green.shade800 : Colors.amber.shade900,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        isOpen ? "TODAY'S CASH REGISTER: OPEN" : "CASH REGISTER: CLOSED / NOT OPENED",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: isOpen ? Colors.green.shade900 : Colors.amber.shade900,
-                                        ),
-                                      ),
-                                    ],
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isOpen ? Colors.green.shade100 : Colors.amber.shade100,
+                                    shape: BoxShape.circle(
                                   ),
-                                  const SizedBox(height: 3),
-                                  if (isOpen)
-                                    Text(
-                                      "Opening: ${currency.format(opening)}  •  Bills: +${currency.format(sales)}  •  Closing Total: ${currency.format(closingTotal)}",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green.shade900,
-                                      ),
-                                    )
-                                  else
-                                    const Text(
-                                      "Tap 'Open Register' to enter opening cash float before starting POS billing.",
-                                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                  child: Icon(
+                                    isOpen ? Icons.point_of_sale : Icons.lock_clock,
+                                    color: isOpen ? Colors.green.shade800 : Colors.amber.shade900,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    isOpen ? "CASH REGISTER: OPEN" : "CASH REGISTER: CLOSED",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isOpen ? Colors.green.shade900 : Colors.amber.shade900,
                                     ),
-                                ],
-                              ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isOpen ? Colors.green.shade700 : AppTheme.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => const CashRegisterDialog(),
+                                    ).then((_) => _refreshAll());
+                                  },
+                                  child: Text(
+                                    isOpen ? "VIEW / CLOSE" : "OPEN REGISTER",
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                              ],
                             ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isOpen ? Colors.green.shade700 : AppTheme.primary,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            const SizedBox(height: 8),
+                            if (isOpen)
+                              Text(
+                                "Opening: ${currency.format(opening)}  •  Bills: +${currency.format(sales)}  •  Closing: ${currency.format(closingTotal)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green.shade900,
+                                ),
+                              )
+                            else
+                              const Text(
+                                "Tap 'Open Register' to enter opening cash float before starting POS billing.",
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                               ),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => const CashRegisterDialog(),
-                                ).then((_) => _refreshAll());
-                              },
-                              child: Text(
-                                isOpen ? 'VIEW / CLOSE' : 'OPEN REGISTER',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
-                            ),
                           ],
                         ),
                       );
