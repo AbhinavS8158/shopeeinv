@@ -205,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: isOpen ? Colors.green.shade100 : Colors.amber.shade100,
-                                    shape: BoxShape.circle(
+                                    shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     isOpen ? Icons.point_of_sale : Icons.lock_clock,
