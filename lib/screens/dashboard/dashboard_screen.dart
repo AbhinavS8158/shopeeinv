@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pos/cash_register_dialog.dart';
+import '../inventory/cash_register_history_screen.dart';
 import '../../providers/cash_register_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -225,10 +226,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(Icons.history, size: 14),
+                                  label: const Text('HISTORY & REPORT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const CashRegisterHistoryScreen()),
+                                    ).then((_) => _refreshAll());
+                                  },
+                                ),
+                                const SizedBox(width: 6),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isOpen ? Colors.green.shade700 : AppTheme.primary,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     minimumSize: Size.zero,
                                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
