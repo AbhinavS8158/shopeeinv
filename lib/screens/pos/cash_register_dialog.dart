@@ -209,7 +209,7 @@ class _CashRegisterDialogState extends State<CashRegisterDialog> {
                       _buildSummaryRow('Total Invoiced Sales:', currencyFormat.format(totalSalesSince), isBold: true),
                       const Divider(height: 16),
                       _buildSummaryRow(
-                        'Total Closing Amount (Opening + Bills):',
+                        'Total Closing Amount:',
                         currencyFormat.format(autoClosingAmount),
                         isBold: true,
                         fontSize: 16,
@@ -217,7 +217,7 @@ class _CashRegisterDialogState extends State<CashRegisterDialog> {
                       ),
                       const SizedBox(height: 4),
                       _buildSummaryRow(
-                        'Physical Cash in Drawer (Opening + Cash):',
+                        'Cash in Drawer (Physical):',
                         currencyFormat.format(autoCashInDrawer),
                         fontSize: 13,
                         color: Colors.green.shade800,
@@ -304,22 +304,37 @@ class _CashRegisterDialogState extends State<CashRegisterDialog> {
   }
 
   Widget _buildSummaryRow(String label, String value, {bool isBold = false, double fontSize = 13, Color? color}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: fontSize, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: AppTheme.textPrimary),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            color: color ?? (isBold ? AppTheme.primaryDark : AppTheme.textPrimary),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 6,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                color: AppTheme.textPrimary,
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 5,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                color: color ?? (isBold ? AppTheme.primaryDark : AppTheme.textPrimary),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
