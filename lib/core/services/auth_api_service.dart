@@ -209,7 +209,7 @@ class AuthApiService {
       final status = (custData['status'] ?? 'Active').toString();
       if (status.toLowerCase() == 'blocked' || status.toLowerCase() == 'suspended') {
         return ApiResponse.error(
-          message: 'Your account has been suspended or blocked by the administrator.',
+          message: 'Your account has been blocked . please contact Admin team',
           errorCode: 'ACCOUNT_BLOCKED',
           statusCode: 403,
         );
@@ -234,6 +234,17 @@ class AuthApiService {
 
         final licData = activeLicenseDoc.data();
         license = AuthLicenseInfo.fromMap(licData, activeLicenseDoc.id);
+
+        // If license has been suspended, blocked, or revoked by admin
+        if (license.status.toLowerCase() == 'suspended' ||
+            license.status.toLowerCase() == 'blocked' ||
+            license.status.toLowerCase() == 'revoked') {
+          return ApiResponse.error(
+            message: 'Your account has been blocked . please contact Admin team',
+            errorCode: 'LICENSE_BLOCKED',
+            statusCode: 403,
+          );
+        }
 
         // Check device limit if license is active
         if (license.isValid) {

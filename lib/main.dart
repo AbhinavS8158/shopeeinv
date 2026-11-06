@@ -11,6 +11,8 @@ import 'providers/cash_register_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/shop_provider.dart';
+import 'providers/block_enforcement_provider.dart';
+import 'screens/auth/blocked_overlay_screen.dart';
 import 'screens/auth/shop_setup_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'firebase_options.dart';
@@ -51,12 +53,29 @@ class ShopeeInvApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BillingProvider()),
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => CashRegisterProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, BlockEnforcementProvider>(
+          create: (_) => BlockEnforcementProvider(),
+          update: (context, auth, blockProv) {
+            final prov = blockProv ?? BlockEnforcementProvider();
+            if (auth.isAuthenticated && auth.currentUser != null) {
+              prov.startMonitoring(
+                auth.currentUser!.id,
+                shopName: auth.currentUser!.shopName,
+                email: auth.currentUser!.email,
+              );
+            } else {
+              prov.stopMonitoring();
+            }
+            return prov;
+          },
+        ),
       ],
       child: MaterialApp(
         title: 'ShopeeInv - Multi-Shop Billing & Inventory',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const SplashScreen(),
+        builder: (context, child) => BlockEnforcementWrapper(child: child ?? const SizedBox()),
       ),
     );
   }
