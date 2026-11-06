@@ -46,3 +46,6 @@ app.*.map.json
 
 # Admin panel
 admin-panel/node_modules/
+
+# Firebase hosting cache
+.firebase/
