@@ -12,6 +12,7 @@ import 'providers/product_provider.dart';
 import 'providers/shop_provider.dart';
 import 'screens/auth/shop_setup_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +51,7 @@ class ShopeeInvApp extends StatelessWidget {
         title: 'ShopeeInv - Multi-Shop Billing & Inventory',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const AppInitializer(),
+        home: const SplashScreen(),
       ),
     );
   }
