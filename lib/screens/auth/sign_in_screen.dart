@@ -8,6 +8,10 @@ import 'shop_setup_screen.dart';
 import 'sign_up_screen.dart';
 import 'forgot_password_dialog.dart';
 import 'device_limit_dialog.dart';
+import '../../core/services/license_request_service.dart';
+import '../../core/services/auth_api_service.dart';
+import 'license_request_screen.dart';
+import 'license_status_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   final String? prefillEmail;
@@ -58,21 +62,62 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Reload shops to see if user has already set up business profile
       final shopProvider = Provider.of<ShopProvider>(context, listen: false);
       await shopProvider.loadShops();
 
       if (!mounted) return;
 
-      final hasShop = shopProvider.hasShop;
+      if (!shopProvider.hasShop) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ShopSetupScreen()),
+          (route) => false,
+        );
+        return;
+      }
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => hasShop ? const DashboardScreen() : const ShopSetupScreen(),
-        ),
-        (route) => false,
-      );
+      final shop = shopProvider.currentShop!;
+      final user = auth.currentUser!;
+
+      // Check License & License Request workflow
+      final activeLic = await LicenseRequestService.getActiveLicense(user.id);
+      if (activeLic != null && activeLic.isValid) {
+        final devCheck = await AuthApiService.registerDevice(
+          customerId: user.id,
+          customerName: user.name,
+          license: activeLic,
+        );
+        if (!mounted) return;
+        if (devCheck.success) {
+          auth.setLicense(activeLic);
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            (route) => false,
+          );
+        } else {
+          DeviceLimitDialog.show(context, devCheck.message);
+        }
+        return;
+      }
+
+      // Check request status
+      final req = await LicenseRequestService.getLatestRequest(user.id);
+      if (!mounted) return;
+
+      if (req == null) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LicenseRequestScreen(shop: shop)),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LicenseStatusScreen(shop: shop)),
+          (route) => false,
+        );
+      }
     } else {
       // Check if error is related to device limit
       final err = auth.errorMessage ?? '';

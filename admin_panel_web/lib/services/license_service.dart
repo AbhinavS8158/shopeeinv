@@ -6,6 +6,7 @@ import '../core/models/license_model.dart';
 import '../core/models/device_model.dart';
 import '../core/models/activity_log_model.dart';
 import '../core/models/connection_history_model.dart';
+import '../core/models/license_request_model.dart';
 import '../core/utils/key_generator.dart';
 
 class LicenseService extends ChangeNotifier {
@@ -14,6 +15,7 @@ class LicenseService extends ChangeNotifier {
   final List<DeviceModel> _devices = [];
   final List<ActivityLogModel> _activityLogs = [];
   final List<ConnectionHistoryModel> _connectionHistory = [];
+  final List<LicenseRequestModel> _licenseRequests = [];
 
   // Firebase backend metadata
   bool isFirebaseConnected = false;
@@ -38,6 +40,8 @@ class LicenseService extends ChangeNotifier {
   List<DeviceModel> get devices => List.unmodifiable(_devices);
   List<ActivityLogModel> get activityLogs => List.unmodifiable(_activityLogs);
   List<ConnectionHistoryModel> get connectionHistory => List.unmodifiable(_connectionHistory);
+  List<LicenseRequestModel> get licenseRequests => List.unmodifiable(_licenseRequests);
+  int get pendingRequestsCount => _licenseRequests.where((r) => r.isPending).length;
 
   // Derived counts
   int get totalCustomers => _customers.length;
@@ -164,6 +168,19 @@ class LicenseService extends ChangeNotifier {
       }
     }, onError: (e) {
       debugPrint('Firestore connection_history stream notice: $e');
+    });
+
+    db.collection('license_requests').snapshots().listen((snap) {
+      if (snap.docs.isNotEmpty) {
+        _licenseRequests.clear();
+        for (final doc in snap.docs) {
+          _licenseRequests.add(LicenseRequestModel.fromMap(doc.data(), doc.id));
+        }
+        _licenseRequests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+        notifyListeners();
+      }
+    }, onError: (e) {
+      debugPrint('Firestore license_requests stream notice: $e');
     });
   }
 
@@ -1033,6 +1050,150 @@ class LicenseService extends ChangeNotifier {
       details: 'Suspended customer account due to subscription dispute',
       createdAt: now.subtract(const Duration(days: 10)),
     ));
+  }
+
+  // --- License Requests Operations ---
+  Future<bool> approveLicenseRequest({
+    required String requestId,
+    required String licenseType,
+    required String validityType,
+    required int maxDevices,
+    String? adminNotes,
+  }) async {
+    final idx = _licenseRequests.indexWhere((r) => r.id == requestId);
+    if (idx == -1) return false;
+
+    final req = _licenseRequests[idx];
+    final now = DateTime.now();
+
+    DateTime? expiresAt;
+    switch (validityType) {
+      case '30_days':
+        expiresAt = now.add(const Duration(days: 30));
+        break;
+      case '3_months':
+        expiresAt = now.add(const Duration(days: 90));
+        break;
+      case '6_months':
+        expiresAt = now.add(const Duration(days: 180));
+        break;
+      case '1_year':
+        expiresAt = now.add(const Duration(days: 365));
+        break;
+      case 'lifetime':
+        expiresAt = null;
+        break;
+      default:
+        expiresAt = now.add(const Duration(days: 365));
+    }
+
+    final newLicenseId = 'lic_${now.millisecondsSinceEpoch}';
+    final licenseKey = KeyGenerator.generateLicenseKey();
+
+    final license = LicenseModel(
+      id: newLicenseId,
+      licenseKey: licenseKey,
+      customerId: req.customerId,
+      customerName: req.customerName,
+      licenseType: licenseType,
+      status: 'Active',
+      maxDevices: maxDevices,
+      validityType: validityType,
+      issuedAt: now,
+      activatedAt: now,
+      expiresAt: expiresAt,
+      issuedBy: currentAdminName,
+      notes: adminNotes ?? 'Issued upon approving license request ${req.id}',
+    );
+
+    _licenses.insert(0, license);
+    await _firestoreSet('licenses', newLicenseId, license.toMap());
+
+    final updatedReq = LicenseRequestModel(
+      id: req.id,
+      customerId: req.customerId,
+      customerName: req.customerName,
+      email: req.email,
+      phone: req.phone,
+      shopId: req.shopId,
+      shopName: req.shopName,
+      businessType: req.businessType,
+      address: req.address,
+      gstin: req.gstin,
+      status: 'Approved',
+      requestedAt: req.requestedAt,
+      reviewedAt: now,
+      reviewedBy: currentAdminName,
+      rejectionReason: null,
+      adminNotes: adminNotes,
+      licenseKey: licenseKey,
+      licenseId: newLicenseId,
+      maxDevices: maxDevices,
+      licenseType: licenseType,
+      validityType: validityType,
+    );
+
+    _licenseRequests[idx] = updatedReq;
+    await _firestoreUpdate('license_requests', req.id, updatedReq.toMap());
+
+    logAdminActivity(
+      action: 'APPROVE_LICENSE_REQUEST',
+      targetType: 'LICENSE_REQUEST',
+      targetId: requestId,
+      details: 'Approved request for "${req.shopName}" (${req.customerName}). License $licenseKey issued.',
+    );
+
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> rejectLicenseRequest({
+    required String requestId,
+    required String reason,
+    String? adminNotes,
+  }) async {
+    final idx = _licenseRequests.indexWhere((r) => r.id == requestId);
+    if (idx == -1) return false;
+
+    final req = _licenseRequests[idx];
+    final now = DateTime.now();
+
+    final updatedReq = LicenseRequestModel(
+      id: req.id,
+      customerId: req.customerId,
+      customerName: req.customerName,
+      email: req.email,
+      phone: req.phone,
+      shopId: req.shopId,
+      shopName: req.shopName,
+      businessType: req.businessType,
+      address: req.address,
+      gstin: req.gstin,
+      status: 'Rejected',
+      requestedAt: req.requestedAt,
+      reviewedAt: now,
+      reviewedBy: currentAdminName,
+      rejectionReason: reason,
+      adminNotes: adminNotes,
+      licenseKey: null,
+      licenseId: null,
+      maxDevices: req.maxDevices,
+      licenseType: req.licenseType,
+      validityType: req.validityType,
+    );
+
+    _licenseRequests[idx] = updatedReq;
+    await _firestoreUpdate('license_requests', req.id, updatedReq.toMap());
+
+    logAdminActivity(
+      action: 'REJECT_LICENSE_REQUEST',
+      targetType: 'LICENSE_REQUEST',
+      targetId: requestId,
+      details: 'Rejected license request for "${req.shopName}". Reason: $reason',
+    );
+
+    notifyListeners();
+    return true;
   }
 }
 

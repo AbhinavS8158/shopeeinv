@@ -6,6 +6,9 @@ import '../../providers/shop_provider.dart';
 import '../auth/shop_setup_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/sign_in_screen.dart';
+import '../../core/services/license_request_service.dart';
+import '../auth/license_request_screen.dart';
+import '../auth/license_status_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -47,15 +50,37 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     // Exactly 3 seconds splash duration
-    Timer(const Duration(seconds: 3), () {
+    Timer(const Duration(seconds: 3), () async {
       if (!mounted) return;
       final isAuthenticated = authProvider.isAuthenticated;
-      final hasShop = shopProvider.hasShop;
 
-      final Widget targetScreen = isAuthenticated
-          ? (hasShop ? const DashboardScreen() : const ShopSetupScreen())
-          : const SignInScreen();
+      Widget targetScreen;
+      if (!isAuthenticated) {
+        targetScreen = const SignInScreen();
+      } else if (!shopProvider.hasShop) {
+        targetScreen = const ShopSetupScreen();
+      } else {
+        final shop = shopProvider.currentShop!;
+        final user = authProvider.currentUser;
 
+        if (user != null) {
+          final activeLic = await LicenseRequestService.getActiveLicense(user.id);
+          if (activeLic != null && activeLic.isValid) {
+            targetScreen = const DashboardScreen();
+          } else {
+            final req = await LicenseRequestService.getLatestRequest(user.id);
+            if (req == null) {
+              targetScreen = LicenseRequestScreen(shop: shop);
+            } else {
+              targetScreen = LicenseStatusScreen(shop: shop);
+            }
+          }
+        } else {
+          targetScreen = const SignInScreen();
+        }
+      }
+
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(

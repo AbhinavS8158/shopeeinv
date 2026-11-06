@@ -74,6 +74,62 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // Pending Requests Alert Banner
+          if (service.pendingRequestsCount > 0) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: AdminTheme.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AdminTheme.warning.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AdminTheme.warning.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.notifications_active, color: AdminTheme.warning, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${service.pendingRequestsCount} License Request(s) Awaiting Review',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AdminTheme.textWhite,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'New shop owners have registered and are waiting for admin approval to access ShopeeInv.',
+                          style: TextStyle(fontSize: 12, color: AdminTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AdminTheme.warning,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                    icon: const Icon(Icons.arrow_forward, size: 16),
+                    label: const Text('Review Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: () => onNavigate(11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // 4 Metric KPI Cards
           LayoutBuilder(
             builder: (context, constraints) {

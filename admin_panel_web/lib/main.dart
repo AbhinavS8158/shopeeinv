@@ -18,6 +18,7 @@ import 'screens/suspended/suspended_accounts_screen.dart';
 import 'screens/logs/activity_logs_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/simulator/device_simulator_screen.dart';
+import 'screens/requests/license_requests_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,6 +112,9 @@ class _AdminAppShellState extends State<AdminAppShell> {
         break;
       case 10:
         bodyWidget = GenerateLicenseScreen(onDone: () => _navigateTo(2));
+        break;
+      case 11:
+        bodyWidget = const LicenseRequestsScreen();
         break;
       default:
         bodyWidget = DashboardScreen(onNavigate: _navigateTo);

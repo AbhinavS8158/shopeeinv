@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/models/shop_profile.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/shop_provider.dart';
-import '../dashboard/dashboard_screen.dart';
+import 'license_request_screen.dart';
 
 class ShopSetupScreen extends StatefulWidget {
   final ShopProfile? existingShop;
@@ -31,6 +31,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
   late TextEditingController _prefixController;
   late TextEditingController _termsController;
 
+  String _businessType = 'Retail Store';
   String _invoiceType = 'a4';
   bool _isTaxInclusive = false;
   bool _isSaving = false;
@@ -123,7 +124,12 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
       if (widget.existingShop == null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(
+            builder: (_) => LicenseRequestScreen(
+              shop: shop,
+              businessType: _businessType,
+            ),
+          ),
         );
       } else {
         Navigator.pop(context);
@@ -194,6 +200,33 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                   // Basic Details Section
                   _buildSectionTitle('Business & Contact Details'),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _businessType,
+                          decoration: const InputDecoration(
+                            labelText: 'Business Type *',
+                            prefixIcon: Icon(Icons.category_outlined),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Retail Store', child: Text('Retail Store')),
+                            DropdownMenuItem(value: 'Supermarket / Grocery', child: Text('Supermarket / Grocery')),
+                            DropdownMenuItem(value: 'Wholesale & Distribution', child: Text('Wholesale & Distribution')),
+                            DropdownMenuItem(value: 'Pharmacy / Medical', child: Text('Pharmacy / Medical')),
+                            DropdownMenuItem(value: 'Electronics & Mobile', child: Text('Electronics & Mobile')),
+                            DropdownMenuItem(value: 'General Store', child: Text('General Store')),
+                            DropdownMenuItem(value: 'Restaurant / Cafe', child: Text('Restaurant / Cafe')),
+                            DropdownMenuItem(value: 'Other Business', child: Text('Other Business')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _businessType = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -381,7 +414,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                       child: _isSaving
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
-                              isNew ? 'SAVE & START BILLING' : 'UPDATE SHOP PROFILE',
+                              isNew ? 'SAVE SHOP DETAILS' : 'UPDATE SHOP PROFILE',
                               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                     ),

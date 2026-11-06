@@ -17,6 +17,9 @@ import '../pos/invoice_preview_screen.dart';
 import '../pos/pos_screen.dart';
 import '../products/product_list_screen.dart';
 import '../settings/shop_settings_screen.dart';
+import '../../core/services/license_request_service.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/license_status_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,9 +39,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _refreshAll() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
       final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
-      if (shop != null) {
+
+      // License Access Control Security Rule
+      if (auth.currentUser != null && shop != null) {
+        final activeLic = await LicenseRequestService.getActiveLicense(auth.currentUser!.id);
+        if (activeLic == null || !activeLic.isValid) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => LicenseStatusScreen(shop: shop, isExpired: activeLic?.isExpired ?? false)),
+              (route) => false,
+            );
+          }
+          return;
+        }
+      }
+
+      if (shop != null && mounted) {
         Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
         Provider.of<BillingProvider>(context, listen: false).loadInvoices(shop.id);
         Provider.of<CustomerProvider>(context, listen: false).loadCustomers(shop.id);

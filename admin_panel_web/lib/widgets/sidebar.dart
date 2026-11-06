@@ -103,6 +103,14 @@ class AdminSidebar extends StatelessWidget {
                   selectedIcon: Icons.people,
                 ),
                 _buildNavItem(
+                  index: 11,
+                  title: 'License Requests',
+                  icon: Icons.assignment_outlined,
+                  selectedIcon: Icons.assignment,
+                  badgeText: service.pendingRequestsCount > 0 ? '${service.pendingRequestsCount}' : null,
+                  badgeColor: AdminTheme.warning,
+                ),
+                _buildNavItem(
                   index: 2,
                   title: 'License Keys',
                   icon: Icons.vpn_key_outlined,

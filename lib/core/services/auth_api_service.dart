@@ -117,49 +117,26 @@ class AuthApiService {
       };
       await db.collection('customers').doc(customerId).set(customerData);
 
-      // 4. Auto-generate active Standard License for the user (1-year validity, 2 devices)
-      final licenseId = 'lic_${now.millisecondsSinceEpoch}';
-      final licenseKey = _generateLicenseKey();
-      final expiresAt = now.add(const Duration(days: 365));
-
-      final licenseData = {
-        'id': licenseId,
-        'licenseKey': licenseKey,
-        'customerId': customerId,
-        'customerName': cleanName,
-        'licenseType': 'Standard',
-        'status': 'Active',
-        'maxDevices': 2,
-        'validityType': '1_year',
-        'issuedAt': now.toIso8601String(),
-        'activatedAt': now.toIso8601String(),
-        'expiresAt': expiresAt.toIso8601String(),
-        'issuedBy': 'Mobile App Registration',
-        'notes': 'Default 2-device standard mobile license',
-      };
-      await db.collection('licenses').doc(licenseId).set(licenseData);
-
-      // 5. Log activity
+      // 4. Log registration in activity_logs
       final logId = 'log_${now.millisecondsSinceEpoch}';
       await db.collection('activity_logs').doc(logId).set({
         'id': logId,
         'action': 'USER_REGISTERED',
         'targetType': 'CUSTOMER',
         'targetId': customerId,
-        'details': 'New user registered: $cleanName ($cleanEmail). License $licenseKey assigned.',
+        'details': 'New user registered: $cleanName ($cleanEmail). Awaiting shop setup & license request.',
         'createdAt': now.toIso8601String(),
         'performedBy': cleanEmail,
       });
 
       final user = AuthUser.fromMap(customerData, customerId);
-      final license = AuthLicenseInfo.fromMap(licenseData, licenseId);
 
       return ApiResponse.success(
         statusCode: 201,
         message: 'Account created successfully! Please sign in with your email and password.',
         data: {
           'user': user.toMap(),
-          'license': license.toMap(),
+          'license': null,
         },
       );
     } catch (e) {
@@ -238,64 +215,43 @@ class AuthApiService {
         );
       }
 
-      // 5. Query user's license
+      // 5. Query user's license (if already approved & issued by admin)
       final licQuery = await db
           .collection('licenses')
           .where('customerId', isEqualTo: customerId)
           .get();
 
-      if (licQuery.docs.isEmpty) {
-        return ApiResponse.error(
-          message: 'No active license found for this account. Please contact the administrator.',
-          errorCode: 'NO_LICENSE',
-          statusCode: 403,
+      AuthLicenseInfo? license;
+      if (licQuery.docs.isNotEmpty) {
+        final activeLicenseDoc = licQuery.docs.firstWhere(
+          (doc) {
+            final d = doc.data();
+            final st = d['status'] ?? 'Active';
+            final exp = d['expiresAt'] != null ? DateTime.tryParse(d['expiresAt'].toString()) : null;
+            return st == 'Active' && (exp == null || exp.isAfter(DateTime.now()));
+          },
+          orElse: () => licQuery.docs.first,
         );
-      }
 
-      // Pick the most relevant license (prefer active non-expired)
-      final activeLicenseDoc = licQuery.docs.firstWhere(
-        (doc) {
-          final d = doc.data();
-          final st = d['status'] ?? 'Active';
-          final exp = d['expiresAt'] != null ? DateTime.tryParse(d['expiresAt'].toString()) : null;
-          return st == 'Active' && (exp == null || exp.isAfter(DateTime.now()));
-        },
-        orElse: () => licQuery.docs.first,
-      );
+        final licData = activeLicenseDoc.data();
+        license = AuthLicenseInfo.fromMap(licData, activeLicenseDoc.id);
 
-      final licData = activeLicenseDoc.data();
-      final license = AuthLicenseInfo.fromMap(licData, activeLicenseDoc.id);
+        // Check device limit if license is active
+        if (license.isValid) {
+          final deviceCheck = await registerDevice(
+            customerId: customerId,
+            customerName: custData['name'] ?? 'User',
+            license: license,
+          );
 
-      // Check license status & expiry
-      if (license.status.toLowerCase() == 'suspended' || license.status.toLowerCase() == 'revoked') {
-        return ApiResponse.error(
-          message: 'Your license (${license.licenseKey}) is currently ${license.status}. Access denied.',
-          errorCode: 'LICENSE_SUSPENDED',
-          statusCode: 403,
-        );
-      }
-
-      if (license.isExpired) {
-        return ApiResponse.error(
-          message: 'Your ShopeeInv license (${license.licenseKey}) has expired. Please renew your license to continue.',
-          errorCode: 'LICENSE_EXPIRED',
-          statusCode: 403,
-        );
-      }
-
-      // 6. Hardware Identity & Device Connection Limit Check
-      final deviceCheck = await registerDevice(
-        customerId: customerId,
-        customerName: custData['name'] ?? 'User',
-        license: license,
-      );
-
-      if (!deviceCheck.success) {
-        return ApiResponse.error(
-          message: deviceCheck.message,
-          errorCode: deviceCheck.errorCode,
-          statusCode: deviceCheck.statusCode,
-        );
+          if (!deviceCheck.success) {
+            return ApiResponse.error(
+              message: deviceCheck.message,
+              errorCode: deviceCheck.errorCode,
+              statusCode: deviceCheck.statusCode,
+            );
+          }
+        }
       }
 
       // 7. Update lastLogin
@@ -324,7 +280,7 @@ class AuthApiService {
         data: {
           'token': token,
           'user': updatedUser.toMap(),
-          'license': license.toMap(),
+          'license': license?.toMap(),
         },
       );
     } catch (e) {
@@ -342,7 +298,7 @@ class AuthApiService {
   static Future<ApiResponse<Map<String, dynamic>>> registerDevice({
     required String customerId,
     required String customerName,
-    required AuthLicenseInfo license,
+    AuthLicenseInfo? license,
   }) async {
     try {
       final db = _firestore;
@@ -355,6 +311,13 @@ class AuthApiService {
       final os = kIsWeb ? 'Web Browser' : Platform.operatingSystemVersion;
       final deviceType = kIsWeb ? 'Web' : (Platform.isAndroid || Platform.isIOS ? 'Mobile' : 'Desktop');
       final now = DateTime.now();
+
+      if (license == null) {
+        return ApiResponse.success(
+          message: 'No active license to bind terminal.',
+          data: {'deviceId': deviceId, 'isNew': false},
+        );
+      }
 
       // Query existing devices for this customer
       final devicesQuery = await db
@@ -591,7 +554,7 @@ class AuthApiService {
   // =========================================================================
   static Future<void> saveSession({
     required AuthUser user,
-    required AuthLicenseInfo license,
+    AuthLicenseInfo? license,
     required String token,
     required bool rememberMe,
   }) async {
@@ -600,7 +563,7 @@ class AuthApiService {
     if (rememberMe) {
       await prefs.setString(_prefTokenKey, token);
       await prefs.setString(_prefUserKey, jsonEncode(user.toMap()));
-      await prefs.setString(_prefLicenseKey, jsonEncode(license.toMap()));
+      if (license != null) { await prefs.setString(_prefLicenseKey, jsonEncode(license.toMap())); } else { await prefs.remove(_prefLicenseKey); }
     }
   }
 

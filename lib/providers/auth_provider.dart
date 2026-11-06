@@ -117,9 +117,9 @@ class AuthProvider extends ChangeNotifier {
 
     if (res.data != null) {
       final userMap = res.data!['user'] as Map<String, dynamic>;
-      final licMap = res.data!['license'] as Map<String, dynamic>;
+      final licMap = res.data!['license'] as Map<String, dynamic>?;
       _currentUser = AuthUser.fromMap(userMap);
-      _currentLicense = AuthLicenseInfo.fromMap(licMap);
+      _currentLicense = licMap != null ? AuthLicenseInfo.fromMap(licMap) : null;
       _isAuthenticated = true;
       _errorMessage = null;
       notifyListeners();
@@ -175,6 +175,27 @@ class AuthProvider extends ChangeNotifier {
 
     notifyListeners();
     return true;
+  }
+
+  bool get hasApprovedLicense => _currentLicense != null && _currentLicense!.isValid;
+
+  /// Refresh user license status from Firestore
+  Future<void> refreshLicense() async {
+    if (_currentUser == null) return;
+    try {
+      final lic = await AuthApiService.getSavedLicense();
+      if (lic != null) {
+        _currentLicense = lic;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing license: $e');
+    }
+  }
+
+  void setLicense(AuthLicenseInfo license) {
+    _currentLicense = license;
+    notifyListeners();
   }
 
   /// Secure Logout
