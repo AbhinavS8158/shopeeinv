@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../core/models/customer_model.dart';
 import '../core/models/license_model.dart';
 import '../core/models/device_model.dart';
@@ -65,18 +64,16 @@ class LicenseService extends ChangeNotifier {
   int get availableSlots => (totalAllowedSlots - totalConnectedDevices).clamp(0, 9999);
 
   LicenseService() {
-    _seedInitialData();
     _initFirestoreSync();
   }
 
   FirebaseFirestore? get _db {
-    if (Firebase.apps.isNotEmpty) {
-      return FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: '(default)',
-      );
+    try {
+      return FirebaseFirestore.instance;
+    } catch (e) {
+      debugPrint('Firestore instance error: $e');
+      return null;
     }
-    return null;
   }
 
   Future<void> _firestoreSet(String col, String id, Map<String, dynamic> data) async {
@@ -109,106 +106,65 @@ class LicenseService extends ChangeNotifier {
     isFirebaseConnected = true;
 
     db.collection('customers').snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _customers.clear();
-        for (final doc in snap.docs) {
-          _customers.add(CustomerModel.fromMap(doc.data(), doc.id));
-        }
-        notifyListeners();
-      } else {
-        _seedFirestoreIfEmpty();
+      _customers.clear();
+      for (final doc in snap.docs) {
+        _customers.add(CustomerModel.fromMap(doc.data(), doc.id));
       }
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore customers stream notice: $e');
+      debugPrint('Firestore customers stream error: $e');
     });
 
     db.collection('licenses').snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _licenses.clear();
-        for (final doc in snap.docs) {
-          _licenses.add(LicenseModel.fromMap(doc.data(), doc.id));
-        }
-        notifyListeners();
+      _licenses.clear();
+      for (final doc in snap.docs) {
+        _licenses.add(LicenseModel.fromMap(doc.data(), doc.id));
       }
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore licenses stream notice: $e');
+      debugPrint('Firestore licenses stream error: $e');
     });
 
     db.collection('devices').snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _devices.clear();
-        for (final doc in snap.docs) {
-          _devices.add(DeviceModel.fromMap(doc.data(), doc.id));
-        }
-        notifyListeners();
+      _devices.clear();
+      for (final doc in snap.docs) {
+        _devices.add(DeviceModel.fromMap(doc.data(), doc.id));
       }
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore devices stream notice: $e');
+      debugPrint('Firestore devices stream error: $e');
     });
 
     db.collection('activity_logs').orderBy('createdAt', descending: true).snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _activityLogs.clear();
-        for (final doc in snap.docs) {
-          _activityLogs.add(ActivityLogModel.fromMap(doc.data(), doc.id));
-        }
-        notifyListeners();
+      _activityLogs.clear();
+      for (final doc in snap.docs) {
+        _activityLogs.add(ActivityLogModel.fromMap(doc.data(), doc.id));
       }
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore activity_logs stream notice: $e');
+      debugPrint('Firestore activity_logs stream error: $e');
     });
 
     db.collection('connection_history').orderBy('timestamp', descending: true).snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _connectionHistory.clear();
-        for (final doc in snap.docs) {
-          _connectionHistory.add(ConnectionHistoryModel.fromMap(doc.data(), doc.id));
-        }
-        notifyListeners();
+      _connectionHistory.clear();
+      for (final doc in snap.docs) {
+        _connectionHistory.add(ConnectionHistoryModel.fromMap(doc.data(), doc.id));
       }
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore connection_history stream notice: $e');
+      debugPrint('Firestore connection_history stream error: $e');
     });
 
     db.collection('license_requests').snapshots().listen((snap) {
-      if (snap.docs.isNotEmpty) {
-        _licenseRequests.clear();
-        for (final doc in snap.docs) {
-          _licenseRequests.add(LicenseRequestModel.fromMap(doc.data(), doc.id));
-        }
-        _licenseRequests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
-        notifyListeners();
+      _licenseRequests.clear();
+      for (final doc in snap.docs) {
+        _licenseRequests.add(LicenseRequestModel.fromMap(doc.data(), doc.id));
       }
+      _licenseRequests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+      notifyListeners();
     }, onError: (e) {
-      debugPrint('Firestore license_requests stream notice: $e');
+      debugPrint('Firestore license_requests stream error: $e');
     });
-  }
-
-  Future<void> _seedFirestoreIfEmpty() async {
-    final db = _db;
-    if (db == null) return;
-    try {
-      final snap = await db.collection('customers').limit(1).get();
-      if (snap.docs.isEmpty) {
-        for (final c in _customers) {
-          await db.collection('customers').doc(c.id).set(c.toMap());
-        }
-        for (final l in _licenses) {
-          await db.collection('licenses').doc(l.id).set(l.toMap());
-        }
-        for (final d in _devices) {
-          await db.collection('devices').doc(d.id).set(d.toMap());
-        }
-        for (final a in _activityLogs) {
-          await db.collection('activity_logs').doc(a.id).set(a.toMap());
-        }
-        for (final h in _connectionHistory) {
-          await db.collection('connection_history').doc(h.id).set(h.toMap());
-        }
-      }
-    } catch (e) {
-      debugPrint('Firestore seed notice: $e');
-    }
   }
 
   // --- Authentication ---
@@ -836,220 +792,6 @@ class LicenseService extends ChangeNotifier {
 
   String getLicenseKey(String licenseId) {
     return _licenses.firstWhere((l) => l.id == licenseId, orElse: () => LicenseModel(id: '', licenseKey: 'None', customerId: '', customerName: '', issuedAt: DateTime.now())).licenseKey;
-  }
-
-  // --- Seed Initial Data (Matching ChatGPT Spec) ---
-  void _seedInitialData() {
-    final now = DateTime.now();
-
-    // 1. ABC Supermarket (The exact 2-device scenario from ChatGPT spec)
-    final cust1 = CustomerModel(
-      id: 'cust_abc_supermarket',
-      customerCode: 'CUST-1001',
-      name: 'John Miller',
-      shopName: 'ABC Supermarket',
-      email: 'john@abcsupermarket.com',
-      phone: '+91 98765 00001',
-      address: 'Shop 12, High Street Mall',
-      status: 'Active',
-      createdAt: now.subtract(const Duration(days: 90)),
-      lastLogin: now,
-      notes: 'Customer with 2-device limit',
-    );
-
-    final lic1 = LicenseModel(
-      id: 'lic_abc_standard',
-      licenseKey: 'POS-ABCD-1234-EFGH',
-      customerId: cust1.id,
-      customerName: cust1.shopName,
-      licenseType: 'Standard',
-      status: 'Active',
-      maxDevices: 2, // 2-Device Limit!
-      validityType: '1_year',
-      issuedAt: now.subtract(const Duration(days: 90)),
-      activatedAt: now.subtract(const Duration(days: 90)),
-      expiresAt: now.add(const Duration(days: 275)),
-      issuedBy: 'Super Admin',
-      notes: 'Standard 2-counter billing license',
-    );
-
-    // Device 1 & Device 2 active (2/2 slots occupied)
-    final dev1 = DeviceModel(
-      id: 'dev_101',
-      deviceId: 'dev_win_counter_1',
-      deviceName: 'Device 1 (Main Billing Counter)',
-      deviceType: 'Desktop',
-      operatingSystem: 'Windows 11 Pro',
-      status: 'Active',
-      firstConnectedAt: now.subtract(const Duration(days: 90)),
-      lastActiveAt: now.subtract(const Duration(minutes: 5)),
-      licenseId: lic1.id,
-      customerId: cust1.id,
-    );
-
-    final dev2 = DeviceModel(
-      id: 'dev_102',
-      deviceId: 'dev_win_counter_2',
-      deviceName: 'Device 2 (Second Billing Counter)',
-      deviceType: 'Desktop',
-      operatingSystem: 'Windows 10 Enterprise',
-      status: 'Active',
-      firstConnectedAt: now.subtract(const Duration(days: 60)),
-      lastActiveAt: now.subtract(const Duration(minutes: 18)),
-      licenseId: lic1.id,
-      customerId: cust1.id,
-    );
-
-    // 2. Priya Fashion Boutique (Premium 5 devices, 3 used)
-    final cust2 = CustomerModel(
-      id: 'cust_priya_boutique',
-      customerCode: 'CUST-1002',
-      name: 'Priya Sharma',
-      shopName: 'Priya Fashion Boutique',
-      email: 'priya@boutiquestyle.com',
-      phone: '+91 98234 56789',
-      address: '34 Connaught Place, New Delhi',
-      status: 'Active',
-      createdAt: now.subtract(const Duration(days: 120)),
-      lastLogin: now.subtract(const Duration(hours: 2)),
-    );
-
-    final lic2 = LicenseModel(
-      id: 'lic_priya_prem',
-      licenseKey: 'POS-PREM-5678-KLMN',
-      customerId: cust2.id,
-      customerName: cust2.shopName,
-      licenseType: 'Premium',
-      status: 'Active',
-      maxDevices: 5,
-      validityType: '1_year',
-      issuedAt: now.subtract(const Duration(days: 120)),
-      activatedAt: now.subtract(const Duration(days: 120)),
-      expiresAt: now.add(const Duration(days: 245)),
-      issuedBy: 'Super Admin',
-    );
-
-    final dev3 = DeviceModel(
-      id: 'dev_201',
-      deviceId: 'dev_mac_owner',
-      deviceName: 'Owner MacBook Air',
-      deviceType: 'Laptop',
-      operatingSystem: 'macOS Sequoia 15.1',
-      status: 'Active',
-      firstConnectedAt: now.subtract(const Duration(days: 120)),
-      lastActiveAt: now.subtract(const Duration(hours: 3)),
-      licenseId: lic2.id,
-      customerId: cust2.id,
-    );
-
-    final dev4 = DeviceModel(
-      id: 'dev_202',
-      deviceId: 'dev_tab_inventory',
-      deviceName: 'Stock Warehouse Tablet',
-      deviceType: 'Tablet',
-      operatingSystem: 'Android 14',
-      status: 'Active',
-      firstConnectedAt: now.subtract(const Duration(days: 80)),
-      lastActiveAt: now.subtract(const Duration(hours: 5)),
-      licenseId: lic2.id,
-      customerId: cust2.id,
-    );
-
-    // 3. Reddy Electronics (Expired License)
-    final cust3 = CustomerModel(
-      id: 'cust_reddy_elec',
-      customerCode: 'CUST-1003',
-      name: 'Sunita Reddy',
-      shopName: 'Reddy Electronics',
-      email: 'sunita@reddytech.in',
-      phone: '+91 97444 55667',
-      address: 'Plot 4, Madhapur, Hyderabad',
-      status: 'Active',
-      createdAt: now.subtract(const Duration(days: 400)),
-      lastLogin: now.subtract(const Duration(days: 16)),
-    );
-
-    final lic3 = LicenseModel(
-      id: 'lic_reddy_exp',
-      licenseKey: 'POS-EXPD-9999-WXYZ',
-      customerId: cust3.id,
-      customerName: cust3.shopName,
-      licenseType: 'Standard',
-      status: 'Expired',
-      maxDevices: 3,
-      validityType: '1_year',
-      issuedAt: now.subtract(const Duration(days: 400)),
-      activatedAt: now.subtract(const Duration(days: 400)),
-      expiresAt: now.subtract(const Duration(days: 15)), // Expired 15 days ago
-      issuedBy: 'Super Admin',
-    );
-
-    // 4. Singh Wholesalers (Suspended / Blocked Account)
-    final cust4 = CustomerModel(
-      id: 'cust_singh_wholesale',
-      customerCode: 'CUST-1004',
-      name: 'Vikram Singh',
-      shopName: 'Singh Wholesalers',
-      email: 'vikram@singhwholesalers.com',
-      phone: '+91 99887 76655',
-      address: 'Grain Market, Ludhiana',
-      status: 'Blocked',
-      createdAt: now.subtract(const Duration(days: 180)),
-      notes: 'Dispute over unpaid enterprise subscription',
-    );
-
-    final lic4 = LicenseModel(
-      id: 'lic_singh_susp',
-      licenseKey: 'POS-SUSP-7777-PQRS',
-      customerId: cust4.id,
-      customerName: cust4.shopName,
-      licenseType: 'Standard',
-      status: 'Suspended',
-      maxDevices: 2,
-      validityType: '1_year',
-      issuedAt: now.subtract(const Duration(days: 180)),
-      expiresAt: now.add(const Duration(days: 185)),
-    );
-
-    _customers.addAll([cust1, cust2, cust3, cust4]);
-    _licenses.addAll([lic1, lic2, lic3, lic4]);
-    _devices.addAll([dev1, dev2, dev3, dev4]);
-
-    // Initial Logs & Connection History
-    _connectionHistory.add(ConnectionHistoryModel(
-      id: 'hist_001',
-      customerId: cust1.id,
-      customerName: cust1.shopName,
-      licenseKey: lic1.licenseKey,
-      deviceId: 'dev_mob_samsung_3',
-      deviceName: 'Device 3 (Mobile POS)',
-      deviceType: 'Mobile',
-      operatingSystem: 'Android 14',
-      action: 'BLOCKED_DEVICE_LIMIT',
-      status: 'DENIED',
-      details: 'Device Limit Reached! Your license allows only 2 connected devices. Please remove an existing device or contact the administrator.',
-      timestamp: now.subtract(const Duration(minutes: 10)),
-    ));
-
-    _activityLogs.add(ActivityLogModel(
-      id: 'log_001',
-      adminName: 'Super Admin',
-      action: 'ISSUE_LICENSE',
-      targetType: 'LICENSE',
-      targetId: lic1.id,
-      details: 'Issued 2-device Standard license POS-ABCD-1234-EFGH to ABC Supermarket',
-      createdAt: now.subtract(const Duration(days: 90)),
-    ));
-
-    _activityLogs.add(ActivityLogModel(
-      id: 'log_002',
-      adminName: 'Super Admin',
-      action: 'BLOCK_CUSTOMER',
-      targetType: 'CUSTOMER',
-      targetId: cust4.id,
-      details: 'Suspended customer account due to subscription dispute',
-      createdAt: now.subtract(const Duration(days: 10)),
-    ));
   }
 
   // --- License Requests Operations ---
