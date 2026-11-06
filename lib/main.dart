@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/database/app_database.dart';
 import 'core/database/sync_service.dart';
 import 'core/theme/app_theme.dart';
+import 'providers/auth_provider.dart';
 import 'providers/billing_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/cash_register_provider.dart';
@@ -43,6 +44,7 @@ class ShopeeInvApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProvider(create: (_) => ShopProvider()..loadShops()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),

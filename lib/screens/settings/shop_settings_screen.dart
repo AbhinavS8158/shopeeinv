@@ -8,6 +8,8 @@ import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/shop_provider.dart';
 import '../auth/shop_setup_screen.dart';
+import '../auth/sign_in_screen.dart';
+import '../../providers/auth_provider.dart';
 
 class ShopSettingsScreen extends StatefulWidget {
   const ShopSettingsScreen({super.key});
@@ -204,6 +206,102 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                       ],
                     ),
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // Account, License & Logout Section
+                _buildHeader('Account & License Management'),
+                const SizedBox(height: 8),
+                Consumer<AuthProvider>(
+                  builder: (context, auth, _) {
+                    final user = auth.currentUser;
+                    final lic = auth.currentLicense;
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: AppTheme.primaryLight,
+                                child: Text(
+                                  (user != null && user.name.isNotEmpty) ? user.name[0].toUpperCase() : 'U',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              title: Text(user?.name ?? 'User Account', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(user?.email ?? 'No email associated'),
+                              trailing: Chip(
+                                label: Text(
+                                  lic?.status.toUpperCase() ?? 'ACTIVE',
+                                  style: const TextStyle(fontSize: 10, color: AppTheme.success, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 16),
+                            if (lic != null) ...[
+                              Text('License Key: ' + lic.licenseKey, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text('Terminal Capacity: Up to ' + lic.maxDevices.toString() + ' active devices', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                              if (lic.expiresAt != null)
+                                Text('Valid Until: ' + DateFormat('dd/MM/yyyy').format(lic.expiresAt!), style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                              const SizedBox(height: 16),
+                            ],
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.logout, color: AppTheme.danger),
+                                label: const Text('LOGOUT FROM THIS DEVICE', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: AppTheme.danger),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.logout, color: AppTheme.danger),
+                                          SizedBox(width: 8),
+                                          Text('Confirm Sign Out'),
+                                        ],
+                                      ),
+                                      content: const Text('Are you sure you want to log out of ShopeeInv on this device?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+                                          onPressed: () async {
+                                            Navigator.pop(ctx);
+                                            await auth.logout();
+                                            if (context.mounted) {
+                                              Navigator.pushAndRemoveUntil(
+                                                context,
+                                                MaterialPageRoute(builder: (_) => const SignInScreen()),
+                                                (route) => false,
+                                              );
+                                            }
+                                          },
+                                          child: const Text('Sign Out'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

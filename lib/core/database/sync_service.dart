@@ -117,7 +117,10 @@ class SyncService {
     _syncError = null;
 
     final db = await AppDatabase.instance.database;
-    final firestore = FirebaseFirestore.instance;
+    final firestore = FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: '(default)',
+    );
 
     try {
       // 1. Sync Shops

@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Customers collection - Shop & User accounts
+    match /customers/{customerId} {
+      allow read, write: if true;
+    }
+
+    // Licenses collection - Issued keys, validity, and max device limits
+    match /licenses/{licenseId} {
+      allow read, write: if true;
+    }
+
+    // Devices collection - Hardware tracking and terminal bindings
+    match /devices/{deviceId} {
+      allow read, write: if true;
+    }
+
+    // Connection History - Terminal audit attempts and blocks
+    match /connection_history/{historyId} {
+      allow read, write: if true;
+    }
+
+    // Activity Logs - Administrative action records
+    match /activity_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    // POS Inventory, Shops, and Products
+    match /shops/{shopId} {
+      allow read, write: if true;
+
+      match /{subcollection=**} {
+        allow read, write: if true;
+      }
+    }
+
+    // Fallback rule for any other collection in (default) database
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/shop_provider.dart';
 import '../auth/shop_setup_screen.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/sign_in_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -42,11 +44,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Load initial data while showing splash
     final shopProvider = Provider.of<ShopProvider>(context, listen: false);
     shopProvider.loadShops();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     // Exactly 3 seconds splash duration
     Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
-      final hasShop = Provider.of<ShopProvider>(context, listen: false).hasShop;
+      final isAuthenticated = authProvider.isAuthenticated;
+      final hasShop = shopProvider.hasShop;
+
+      final Widget targetScreen = isAuthenticated
+          ? (hasShop ? const DashboardScreen() : const ShopSetupScreen())
+          : const SignInScreen();
 
       Navigator.pushReplacement(
         context,
@@ -54,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           transitionDuration: const Duration(milliseconds: 600),
           pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
             opacity: animation,
-            child: hasShop ? const DashboardScreen() : const ShopSetupScreen(),
+            child: targetScreen,
           ),
         ),
       );
