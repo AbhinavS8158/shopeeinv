@@ -12,6 +12,7 @@ import 'providers/product_provider.dart';
 import 'providers/shop_provider.dart';
 import 'screens/auth/shop_setup_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
 
 void main() async {
@@ -19,7 +20,9 @@ void main() async {
 
   // Try initializing Firebase safely (offline fallback if options not yet configured)
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint('Firebase not configured or offline mode: $e');
   }

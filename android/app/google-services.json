@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "133096035741",
+    "project_id": "shopeeinv-8da75",
+    "storage_bucket": "shopeeinv-8da75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:133096035741:android:0527b196267c35b7bdcb74",
+        "android_client_info": {
+          "package_name": "com.shopeeinv.shopeeinv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADc043kKMG0KEL8DNTTFEGgpU6WLmHu1c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
