@@ -223,15 +223,14 @@ class AuthApiService {
 
       AuthLicenseInfo? license;
       if (licQuery.docs.isNotEmpty) {
-        final activeLicenseDoc = licQuery.docs.firstWhere(
-          (doc) {
-            final d = doc.data();
-            final st = d['status'] ?? 'Active';
-            final exp = d['expiresAt'] != null ? DateTime.tryParse(d['expiresAt'].toString()) : null;
-            return st == 'Active' && (exp == null || exp.isAfter(DateTime.now()));
-          },
-          orElse: () => licQuery.docs.first,
-        );
+        final activeDocs = licQuery.docs.where((doc) {
+          final d = doc.data();
+          final st = d['status'] ?? 'Active';
+          final exp = d['expiresAt'] != null ? DateTime.tryParse(d['expiresAt'].toString()) : null;
+          return st == 'Active' && (exp == null || exp.isAfter(DateTime.now()));
+        }).toList();
+
+        final activeLicenseDoc = activeDocs.isNotEmpty ? activeDocs.first : licQuery.docs.first;
 
         final licData = activeLicenseDoc.data();
         license = AuthLicenseInfo.fromMap(licData, activeLicenseDoc.id);
