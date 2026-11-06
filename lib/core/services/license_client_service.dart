@@ -98,7 +98,7 @@ class LicenseClientService {
           return LicenseCheckResult(
             isAllowed: false,
             status: 'EXPIRED',
-            errorMessage: 'Your ShopeeInv license expired on ${expiresAtStr.substring(0, 10)}. Please renew your license.',
+            errorMessage: 'Your ShopeeInv license expired on ${expiresAtStr.length >= 10 ? expiresAtStr.substring(0, 10) : expiresAtStr}. Please renew your license.',
           );
         }
       }

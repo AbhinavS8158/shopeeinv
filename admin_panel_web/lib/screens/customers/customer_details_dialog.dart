@@ -47,7 +47,9 @@ class CustomerDetailsDialog extends StatelessWidget {
                         radius: 22,
                         backgroundColor: AdminTheme.primary.withValues(alpha: 0.2),
                         child: Text(
-                          customer.shopName.substring(0, 1).toUpperCase(),
+                          customer.shopName.trim().isNotEmpty
+                              ? customer.shopName.trim()[0].toUpperCase()
+                              : (customer.name.trim().isNotEmpty ? customer.name.trim()[0].toUpperCase() : 'S'),
                           style: const TextStyle(color: AdminTheme.primaryLight, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -55,7 +57,12 @@ class CustomerDetailsDialog extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(customer.shopName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.textWhite)),
+                          Text(
+                            customer.shopName.trim().isNotEmpty
+                                ? customer.shopName
+                                : (customer.name.trim().isNotEmpty ? customer.name : 'Registered Merchant'),
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.textWhite),
+                          ),
                           Text('${customer.name} • ${customer.customerCode}', style: const TextStyle(fontSize: 12, color: AdminTheme.textMuted)),
                         ],
                       ),

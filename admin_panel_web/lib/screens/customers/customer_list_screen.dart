@@ -161,7 +161,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                   radius: 20,
                                   backgroundColor: AdminTheme.primary.withValues(alpha: 0.2),
                                   child: Text(
-                                    c.shopName.substring(0, 1).toUpperCase(),
+                                    c.shopName.trim().isNotEmpty
+                                        ? c.shopName.trim()[0].toUpperCase()
+                                        : (c.name.trim().isNotEmpty ? c.name.trim()[0].toUpperCase() : 'S'),
                                     style: const TextStyle(color: AdminTheme.primaryLight, fontWeight: FontWeight.bold),
                                   ),
                                 ),
@@ -172,12 +174,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        c.shopName,
+                                        c.shopName.trim().isNotEmpty
+                                            ? c.shopName
+                                            : (c.name.trim().isNotEmpty ? c.name : 'Registered Merchant'),
                                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AdminTheme.textWhite),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '${c.name} • ${c.email}',
+                                        '${c.name.isNotEmpty ? c.name : "New User"} • ${c.email}',
                                         style: const TextStyle(fontSize: 12, color: AdminTheme.textMuted),
                                       ),
                                       Text(

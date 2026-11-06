@@ -506,16 +506,18 @@ class DashboardScreen extends StatelessWidget {
                 leading: CircleAvatar(
                   backgroundColor: AdminTheme.primary.withValues(alpha: 0.2),
                   child: Text(
-                    c.shopName.substring(0, 1).toUpperCase(),
+                    c.shopName.trim().isNotEmpty
+                        ? c.shopName.trim()[0].toUpperCase()
+                        : (c.name.trim().isNotEmpty ? c.name.trim()[0].toUpperCase() : 'S'),
                     style: const TextStyle(color: AdminTheme.primaryLight, fontWeight: FontWeight.bold),
                   ),
                 ),
                 title: Text(
-                  c.shopName,
+                  c.shopName.trim().isNotEmpty ? c.shopName : (c.name.trim().isNotEmpty ? c.name : 'Registered Merchant'),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AdminTheme.textWhite),
                 ),
                 subtitle: Text(
-                  '${c.name} • ${c.email}',
+                  '${c.name.isNotEmpty ? c.name : "New User"} • ${c.email}',
                   style: const TextStyle(fontSize: 11, color: AdminTheme.textMuted),
                 ),
                 trailing: Container(

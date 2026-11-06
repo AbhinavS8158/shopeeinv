@@ -186,7 +186,9 @@ class AdminSidebar extends StatelessWidget {
                   radius: 18,
                   backgroundColor: AdminTheme.primary.withValues(alpha: 0.2),
                   child: Text(
-                    service.currentAdminName.substring(0, 2).toUpperCase(),
+                    service.currentAdminName.trim().length >= 2
+                        ? service.currentAdminName.trim().substring(0, 2).toUpperCase()
+                        : (service.currentAdminName.trim().isNotEmpty ? service.currentAdminName.trim().toUpperCase() : 'AD'),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
