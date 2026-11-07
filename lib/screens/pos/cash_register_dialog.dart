@@ -106,11 +106,10 @@ class _CashRegisterDialogState extends State<CashRegisterDialog> {
                       ],
                     ),
                   ),
-                  if (isOpen)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
                 ],
               ),
               const SizedBox(height: 18),
@@ -183,7 +182,7 @@ class _CashRegisterDialogState extends State<CashRegisterDialog> {
                             );
                             setState(() => _isSaving = false);
                             if (ok && mounted) {
-                              Navigator.pop(context);
+                              Navigator.pop(context, true);
                               widget.onSessionStarted?.call();
                             }
                           },

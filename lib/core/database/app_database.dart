@@ -30,24 +30,27 @@ class AppDatabase {
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-      return await databaseFactory.openDatabase(
+      final db = await databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 2,
+          version: 3,
           onCreate: _createDB,
           onUpgrade: _upgradeDB,
         ),
       );
+      try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
+      return db;
     } else {
-      // Mobile initialization (Android, iOS)
       final dbPath = await getDatabasesPath();
       final path = join(dbPath, filePath);
-      return await openDatabase(
+      final db = await openDatabase(
         path,
-        version: 2,
+        version: 3,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
+      try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
+      return db;
     }
   }
 
@@ -91,6 +94,7 @@ class AppDatabase {
         sellingPrice REAL NOT NULL,
         mrp REAL,
         gstRate REAL DEFAULT 0.0,
+        isTaxIncluded INTEGER DEFAULT 0,
         stockQuantity REAL DEFAULT 0.0,
         minStockAlert REAL DEFAULT 5.0,
         unit TEXT DEFAULT 'Pcs',
@@ -213,6 +217,13 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_cash_sessions_shop_date ON cash_register_sessions(shopId, date)');
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0');
+      } catch (e) {
+        debugPrint('Column isTaxIncluded might already exist: $e');
+      }
     }
   }
 

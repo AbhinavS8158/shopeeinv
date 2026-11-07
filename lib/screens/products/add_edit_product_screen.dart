@@ -33,6 +33,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   late TextEditingController _supplierController;
 
   double _gstRate = 0.0;
+  bool _isTaxIncluded = false;
   String _unit = 'Pcs';
   DateTime? _expiryDate;
   bool _isSaving = false;
@@ -57,6 +58,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _supplierController = TextEditingController(text: p?.supplierName ?? '');
 
     _gstRate = p?.gstRate ?? 0.0;
+    _isTaxIncluded = p?.isTaxIncluded ?? false;
     _unit = p?.unit ?? 'Pcs';
     _expiryDate = p?.expiryDate;
   }
@@ -110,6 +112,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       sellingPrice: sellingPrice,
       mrp: mrp,
       gstRate: _gstRate,
+      isTaxIncluded: _isTaxIncluded,
       stockQuantity: stock,
       minStockAlert: alert,
       unit: _unit,
@@ -325,6 +328,66 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Tax Included / Excluded Configuration
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _isTaxIncluded ? Colors.teal.shade50 : Colors.blueGrey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _isTaxIncluded ? Colors.teal.shade300 : Colors.blueGrey.shade200,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _isTaxIncluded ? Icons.check_circle : Icons.remove_circle_outline,
+                                  color: _isTaxIncluded ? Colors.teal.shade800 : Colors.blueGrey.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isTaxIncluded ? 'Tax Included (വിലയിൽ VAT ഉൾപ്പെട്ടിട്ടുണ്ട്)' : 'Tax Excluded (വിലയിൽ VAT ഉൾപ്പെട്ടിട്ടില്ല)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: _isTaxIncluded ? Colors.teal.shade900 : Colors.blueGrey.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Switch(
+                              value: _isTaxIncluded,
+                              activeThumbColor: Colors.teal.shade700,
+                              onChanged: (val) {
+                                setState(() => _isTaxIncluded = val);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isTaxIncluded
+                              ? '• Tax Included: The product price already includes tax. During billing, the system will extract the tax without adding extra tax.'
+                              : '• Tax Excluded: The product price does not include tax. During billing, the system will calculate tax separately and add it to the product price.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _isTaxIncluded ? Colors.teal.shade900 : Colors.blueGrey.shade700,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 

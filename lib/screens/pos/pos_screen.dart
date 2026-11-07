@@ -35,11 +35,24 @@ class _PosScreenState extends State<PosScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
       if (shop != null) {
         Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
         Provider.of<CustomerProvider>(context, listen: false).loadCustomers(shop.id);
+
+        final cashProvider = Provider.of<CashRegisterProvider>(context, listen: false);
+        await cashProvider.loadTodaySession(shop.id);
+        if (!cashProvider.hasOpenSession && mounted) {
+          final opened = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const CashRegisterDialog(),
+          );
+          if (opened != true && !cashProvider.hasOpenSession && mounted) {
+            Navigator.pop(context);
+          }
+        }
       }
     });
   }
@@ -558,7 +571,7 @@ class _PosScreenState extends State<PosScreen> {
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(
-                                    '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}%)',
+                                    '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
                                     style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                                   ),
                                 ],

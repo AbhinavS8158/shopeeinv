@@ -15,17 +15,46 @@ class CartItem {
     this.discountAmount = 0.0,
   }) : customPrice = customPrice ?? product.sellingPrice;
 
+  bool get isTaxIncluded => product.isTaxIncluded;
+
   double get unitPrice => customPrice;
   double get grossTotal => (unitPrice * quantity) - discountAmount;
 
-  // Tax calculation
-  double get taxAmount {
-    if (product.gstRate <= 0) return 0.0;
-    // Assuming selling price is exclusive of tax by default
-    return (grossTotal * product.gstRate) / 100.0;
+  // Base taxable amount before tax
+  double get taxableAmount {
+    if (grossTotal <= 0) return 0.0;
+    if (product.gstRate <= 0) return grossTotal;
+    if (isTaxIncluded) {
+      // Selling price already includes tax: extract base value
+      return grossTotal / (1.0 + (product.gstRate / 100.0));
+    } else {
+      // Selling price excludes tax: base is the gross total
+      return grossTotal;
+    }
   }
 
-  double get netTotal => grossTotal + taxAmount;
+  // Tax amount for this line
+  double get taxAmount {
+    if (grossTotal <= 0 || product.gstRate <= 0) return 0.0;
+    if (isTaxIncluded) {
+      // Tax included in price: extract tax amount
+      return grossTotal - taxableAmount;
+    } else {
+      // Tax excluded from price: calculate on top of gross total
+      return (grossTotal * product.gstRate) / 100.0;
+    }
+  }
+
+  // Total amount payable for this item
+  double get netTotal {
+    if (isTaxIncluded) {
+      // Already includes tax: do not add tax again!
+      return grossTotal > 0 ? grossTotal : 0.0;
+    } else {
+      // Tax excluded: add tax to gross total
+      return grossTotal + taxAmount;
+    }
+  }
 
   InvoiceItem toInvoiceItem() {
     return InvoiceItem(
@@ -124,7 +153,8 @@ class CartProvider extends ChangeNotifier {
   double get totalDiscount => totalLineDiscount + _overallDiscount;
 
   double get taxableAmount {
-    final val = subtotal - totalDiscount;
+    final baseTaxable = _items.fold(0.0, (sum, item) => sum + item.taxableAmount);
+    final val = baseTaxable - _overallDiscount;
     return val > 0 ? val : 0.0;
   }
 
@@ -136,7 +166,10 @@ class CartProvider extends ChangeNotifier {
   double get cgstAmount => totalTax / 2.0;
   double get sgstAmount => totalTax / 2.0;
 
-  double get rawGrandTotal => taxableAmount + totalTax;
+  double get rawGrandTotal {
+    final total = _items.fold(0.0, (sum, item) => sum + item.netTotal) - _overallDiscount;
+    return total > 0 ? total : 0.0;
+  }
 
   double get roundOff {
     final rounded = rawGrandTotal.roundToDouble();

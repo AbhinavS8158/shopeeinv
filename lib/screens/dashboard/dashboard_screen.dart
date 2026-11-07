@@ -62,8 +62,124 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
         Provider.of<BillingProvider>(context, listen: false).loadInvoices(shop.id);
         Provider.of<CustomerProvider>(context, listen: false).loadCustomers(shop.id);
+        Provider.of<CashRegisterProvider>(context, listen: false).loadTodaySession(shop.id);
       }
     });
+  }
+
+  Future<void> _navigateToPosBilling() async {
+    final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
+    if (shop == null) return;
+
+    final cashProvider = Provider.of<CashRegisterProvider>(context, listen: false);
+    await cashProvider.loadTodaySession(shop.id);
+
+    if (!mounted) return;
+
+    if (cashProvider.hasOpenSession) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PosScreen()),
+      ).then((_) => _refreshAll());
+    } else {
+      _showRegisterClosedDialog();
+    }
+  }
+
+  void _showRegisterClosedDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.lock_clock, color: Colors.amber.shade900, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Cash Register Closed',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'POS ബില്ലിംഗ് ആരംഭിക്കുന്നതിന് മുൻപായി ഇന്നത്തെ ക്യാഷ് രജിസ്റ്റർ തുറക്കേണ്ടതുണ്ട്. കൗണ്ടറിലെ ഓപ്പണിംഗ് ക്യാഷ് (Opening Balance) നൽകി രജിസ്റ്റർ ഓപ്പൺ ചെയ്യുക.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade800, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.amber.shade900),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Please open the cash register before starting POS billing.',
+                        style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel / പിന്നീട്', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.point_of_sale, size: 18),
+              label: const Text('OPEN REGISTER', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogCtx);
+                final opened = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const CashRegisterDialog(),
+                );
+
+                if (!mounted) return;
+                _refreshAll();
+
+                final updatedCash = Provider.of<CashRegisterProvider>(context, listen: false);
+                if ((opened == true || updatedCash.hasOpenSession) && mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PosScreen()),
+                  ).then((_) => _refreshAll());
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -141,12 +257,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.point_of_sale, color: Colors.white),
         label: const Text('NEW BILL (POS)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PosScreen()),
-          ).then((_) => _refreshAll());
-        },
+        onPressed: _navigateToPosBilling,
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -358,12 +469,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ElevatedButton.icon(
                                     icon: const Icon(Icons.point_of_sale),
                                     label: const Text('OPEN POS BILLING'),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const PosScreen()),
-                                      ).then((_) => _refreshAll());
-                                    },
+                                    onPressed: _navigateToPosBilling,
                                   ),
                                 ],
                               ),
@@ -576,9 +682,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildActionBtn('POS Billing', Icons.point_of_sale, AppTheme.primary, () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PosScreen())).then((_) => _refreshAll());
-                }),
+                _buildActionBtn('POS Billing', Icons.point_of_sale, AppTheme.primary, _navigateToPosBilling),
                 _buildActionBtn('Products', Icons.inventory_2, AppTheme.accent, () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListScreen())).then((_) => _refreshAll());
                 }),
