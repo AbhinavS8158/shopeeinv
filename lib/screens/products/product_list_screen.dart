@@ -227,7 +227,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            '${p.category} | SKU: ${p.sku.isNotEmpty ? p.sku : "-"} | GST: ${p.gstRate}%',
+                                            '${p.category} | SKU: ${p.sku.isNotEmpty ? p.sku : "-"} | VAT: ${p.gstRate}%',
                                             style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                                           ),
                                           if (p.barcode.isNotEmpty)

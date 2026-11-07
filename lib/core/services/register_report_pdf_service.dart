@@ -47,7 +47,7 @@ class RegisterReportPdfService {
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(shop.address, style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text('Phone: ${shop.phone}  ${shop.gstin.isNotEmpty ? "| GSTIN: ${shop.gstin}" : ""}',
+                      pw.Text('Phone: ${shop.phone}  ${shop.gstin.isNotEmpty ? "| VAT / TRN: ${shop.gstin}" : ""}',
                           style: const pw.TextStyle(fontSize: 8)),
                     ],
                   ),

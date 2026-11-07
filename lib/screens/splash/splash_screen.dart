@@ -232,7 +232,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Offline-First GST Billing',
+                  'Offline-First VAT Billing',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,

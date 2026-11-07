@@ -177,7 +177,7 @@ class _PosScreenState extends State<PosScreen> {
             const SizedBox(height: 12),
             TextField(controller: phoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone Number')),
             const SizedBox(height: 12),
-            TextField(controller: gstinCtrl, decoration: const InputDecoration(labelText: 'GSTIN (Optional)')),
+            TextField(controller: gstinCtrl, decoration: const InputDecoration(labelText: 'VAT / TRN No. (Optional)')),
           ],
         ),
         actions: [
@@ -558,7 +558,7 @@ class _PosScreenState extends State<PosScreen> {
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(
-                                    '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (GST: ${item.product.gstRate}%)',
+                                    '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}%)',
                                     style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                                   ),
                                 ],
@@ -613,7 +613,7 @@ class _PosScreenState extends State<PosScreen> {
               children: [
                 _buildSummaryLine('Subtotal', currencyFormat.format(cart.subtotal)),
                 if (cart.totalTax > 0)
-                  _buildSummaryLine('GST (CGST + SGST)', currencyFormat.format(cart.totalTax)),
+                  _buildSummaryLine('VAT Amount', currencyFormat.format(cart.totalTax)),
                 if (cart.roundOff != 0)
                   _buildSummaryLine('Round Off', cart.roundOff.toStringAsFixed(2)),
                 const Divider(),

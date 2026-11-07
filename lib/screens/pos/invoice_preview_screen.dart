@@ -82,7 +82,7 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                   const SizedBox(width: 8),
                   ChoiceChip(
                     avatar: const Icon(Icons.description, size: 16),
-                    label: const Text('A4 GST Tax Invoice'),
+                    label: const Text('A4 VAT Tax Invoice'),
                     selected: _currentFormat == 'a4',
                     onSelected: (val) {
                       if (val) setState(() => _currentFormat = 'a4');

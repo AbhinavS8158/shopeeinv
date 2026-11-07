@@ -38,7 +38,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   bool _isSaving = false;
 
   final List<String> _units = ['Pcs', 'Kg', 'Gm', 'Ltr', 'Ml', 'Box', 'Meter', 'Packet', 'Set'];
-  final List<double> _gstRates = [0.0, 5.0, 12.0, 18.0, 28.0];
+  final List<double> _gstRates = [0.0, 5.0, 10.0, 12.0, 15.0, 18.0, 20.0, 28.0];
 
   @override
   void initState() {
@@ -257,8 +257,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Pricing & GST
-                  _buildSectionTitle('Pricing & GST Details'),
+                  // Pricing & VAT
+                  _buildSectionTitle('Pricing & VAT Details'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -303,11 +303,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         child: DropdownButtonFormField<double>(
                           value: _gstRate,
                           decoration: const InputDecoration(
-                            labelText: 'GST Tax Rate',
+                            labelText: 'VAT Tax Rate',
                             prefixIcon: Icon(Icons.percent),
                           ),
                           items: _gstRates
-                              .map((r) => DropdownMenuItem(value: r, child: Text('${r.toStringAsFixed(0)}% GST')))
+                              .map((r) => DropdownMenuItem(value: r, child: Text('${r.toStringAsFixed(0)}% VAT')))
                               .toList(),
                           onChanged: (val) {
                             if (val != null) setState(() => _gstRate = val);

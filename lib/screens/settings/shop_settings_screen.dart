@@ -73,7 +73,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                                   ),
                                   Text('Owner: ${currentShop.ownerName} | Ph: ${currentShop.phone}'),
                                   if (currentShop.gstin.isNotEmpty)
-                                    Text('GSTIN: ${currentShop.gstin}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text('VAT / TRN: ${currentShop.gstin}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               ElevatedButton.icon(
@@ -126,7 +126,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                             color: isSelected ? AppTheme.success : AppTheme.textSecondary,
                           ),
                           title: Text(s.shopName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                          subtitle: Text('GSTIN: ${s.gstin.isNotEmpty ? s.gstin : "N/A"}'),
+                          subtitle: Text('VAT / TRN: ${s.gstin.isNotEmpty ? s.gstin : "N/A"}'),
                           trailing: isSelected
                               ? const Chip(label: Text('ACTIVE', style: TextStyle(fontSize: 10, color: AppTheme.success)))
                               : TextButton(

@@ -132,6 +132,7 @@ class CartProvider extends ChangeNotifier {
     return _items.fold(0.0, (sum, item) => sum + item.taxAmount);
   }
 
+  double get vatAmount => totalTax;
   double get cgstAmount => totalTax / 2.0;
   double get sgstAmount => totalTax / 2.0;
 

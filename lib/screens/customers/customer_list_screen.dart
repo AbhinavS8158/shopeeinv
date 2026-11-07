@@ -59,7 +59,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               const SizedBox(height: 12),
               TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Address')),
               const SizedBox(height: 12),
-              TextField(controller: gstinCtrl, decoration: const InputDecoration(labelText: 'GSTIN')),
+              TextField(controller: gstinCtrl, decoration: const InputDecoration(labelText: 'VAT / TRN Number')),
             ],
           ),
         ),
@@ -207,7 +207,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                 ),
                               ),
                               title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${c.phone.isNotEmpty ? c.phone : "No Phone"} ${c.gstin.isNotEmpty ? " | GST: ${c.gstin}" : ""}'),
+                              subtitle: Text('${c.phone.isNotEmpty ? c.phone : "No Phone"} ${c.gstin.isNotEmpty ? " | VAT: ${c.gstin}" : ""}'),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

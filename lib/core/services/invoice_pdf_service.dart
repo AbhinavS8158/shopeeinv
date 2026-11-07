@@ -10,7 +10,7 @@ class InvoicePdfService {
   static final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 2);
   static final dateFormat = DateFormat('dd/MM/yyyy hh:mm a');
 
-  /// Generate A4 GST Tax Invoice
+  /// Generate A4 VAT Tax Invoice
   static Future<Uint8List> generateA4Invoice(ShopProfile shop, Invoice invoice) async {
     final pdf = pw.Document();
 
@@ -48,7 +48,7 @@ class InvoicePdfService {
                             pw.Text('${shop.city}, ${shop.state} - ${shop.pincode}', style: const pw.TextStyle(fontSize: 9)),
                           pw.SizedBox(height: 2),
                           if (shop.gstin.isNotEmpty)
-                            pw.Text('GSTIN: ${shop.gstin}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                            pw.Text('VAT / TRN: ${shop.gstin}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
                           pw.Text('Phone: ${shop.phone}  ${shop.email.isNotEmpty ? " | Email: ${shop.email}" : ""}',
                               style: const pw.TextStyle(fontSize: 9)),
                         ],
@@ -63,7 +63,7 @@ class InvoicePdfService {
                             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             color: PdfColors.blueGrey800,
                             child: pw.Text(
-                              'TAX INVOICE',
+                              'VAT TAX INVOICE',
                               style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                             ),
                           ),
@@ -101,7 +101,7 @@ class InvoicePdfService {
                     if (invoice.customerPhone.isNotEmpty)
                       pw.Text('Phone: ${invoice.customerPhone}', style: const pw.TextStyle(fontSize: 9)),
                     if (invoice.customerGstin.isNotEmpty)
-                      pw.Text('GSTIN: ${invoice.customerGstin}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('VAT / TRN: ${invoice.customerGstin}', style: const pw.TextStyle(fontSize: 9)),
                   ],
                 ),
               ),
@@ -124,7 +124,7 @@ class InvoicePdfService {
                     6: pw.Alignment.centerRight,
                     7: pw.Alignment.centerRight,
                   },
-                  headers: ['#', 'Item Description', 'Qty', 'Rate', 'Disc', 'Tax %', 'Tax Amt', 'Total (Rs.)'],
+                  headers: ['#', 'Item Description', 'Qty', 'Rate', 'Disc', 'VAT %', 'VAT Amt', 'Total (Rs.)'],
                   data: List.generate(invoice.items.length, (index) {
                     final item = invoice.items[index];
                     return [
@@ -197,10 +197,8 @@ class InvoicePdfService {
                           if (invoice.discountAmount > 0)
                             _buildSummaryRow('Discount:', '- ${currencyFormat.format(invoice.discountAmount)}', color: PdfColors.red800),
                           _buildSummaryRow('Taxable Value:', currencyFormat.format(invoice.taxableAmount)),
-                          if (invoice.cgstAmount > 0)
-                            _buildSummaryRow('CGST:', currencyFormat.format(invoice.cgstAmount)),
-                          if (invoice.sgstAmount > 0)
-                            _buildSummaryRow('SGST:', currencyFormat.format(invoice.sgstAmount)),
+                          if (invoice.totalTax > 0)
+                            _buildSummaryRow('VAT Amount:', currencyFormat.format(invoice.totalTax)),
                           if (invoice.roundOff != 0)
                             _buildSummaryRow('Round Off:', invoice.roundOff.toStringAsFixed(2)),
                           pw.Divider(thickness: 1),
@@ -264,7 +262,7 @@ class InvoicePdfService {
               if (shop.phone.isNotEmpty)
                 pw.Text('Ph: ${shop.phone}', style: const pw.TextStyle(fontSize: 7)),
               if (shop.gstin.isNotEmpty)
-                pw.Text('GSTIN: ${shop.gstin}', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+                pw.Text('VAT / TRN: ${shop.gstin}', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
               pw.Divider(thickness: 0.5),
 
               // Bill Info
@@ -342,7 +340,7 @@ class InvoicePdfService {
               if (invoice.discountAmount > 0)
                 _buildThermalRow('Discount:', '-${invoice.discountAmount.toStringAsFixed(2)}'),
               if (invoice.totalTax > 0)
-                _buildThermalRow('Tax (GST):', invoice.totalTax.toStringAsFixed(2)),
+                _buildThermalRow('Tax (VAT):', invoice.totalTax.toStringAsFixed(2)),
               if (invoice.roundOff != 0)
                 _buildThermalRow('Round Off:', invoice.roundOff.toStringAsFixed(2)),
               pw.Divider(thickness: 1),

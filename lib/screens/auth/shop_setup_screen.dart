@@ -186,7 +186,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                               ),
                               const SizedBox(height: 2),
                               const Text(
-                                'Your invoices, receipts, and reports will carry these details and GST numbers.',
+                                'Your invoices, receipts, and reports will carry these details and VAT / TRN numbers.',
                                 style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
                               ),
                             ],
@@ -282,7 +282,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // GST & Tax Section
+                  // VAT & Tax Section
                   _buildSectionTitle('Tax & Payment Configuration'),
                   const SizedBox(height: 12),
                   Row(
@@ -291,7 +291,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                         child: TextFormField(
                           controller: _gstinController,
                           decoration: const InputDecoration(
-                            labelText: 'GSTIN Number (Optional)',
+                            labelText: 'VAT / TRN Number (Optional)',
                             hintText: 'e.g. 32AAAAA0000A1Z5',
                             prefixIcon: Icon(Icons.receipt_long),
                           ),
@@ -374,7 +374,7 @@ class _ShopSetupScreenState extends State<ShopSetupScreen> {
                     items: const [
                       DropdownMenuItem(
                         value: 'a4',
-                        child: Text('A4 Standard GST Invoice', overflow: TextOverflow.ellipsis),
+                        child: Text('A4 Standard VAT Invoice', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'thermal_58',
