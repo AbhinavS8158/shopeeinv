@@ -116,7 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'POS ബില്ലിംഗ് ആരംഭിക്കുന്നതിന് മുൻപായി ഇന്നത്തെ ക്യാഷ് രജിസ്റ്റർ തുറക്കേണ്ടതുണ്ട്. കൗണ്ടറിലെ ഓപ്പണിംഗ് ക്യാഷ് (Opening Balance) നൽകി രജിസ്റ്റർ ഓപ്പൺ ചെയ്യുക.',
+                'The daily cash register must be opened before starting POS billing. Please enter your counter opening cash balance to proceed.',
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade800, height: 1.4),
               ),
               const SizedBox(height: 12),
@@ -145,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel / പിന്നീട്', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.point_of_sale, size: 18),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -442,6 +443,21 @@ class _PosScreenState extends State<PosScreen> {
                           ),
                         ],
                       ),
+                      if (p.imageBase64.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.memory(
+                              base64Decode(p.imageBase64),
+                              height: 38,
+                              width: 38,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       Text(
                         p.name,

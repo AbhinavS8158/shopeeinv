@@ -10,6 +10,7 @@ class Product {
   final double mrp;
   final double gstRate; // e.g. 0, 5, 12, 18, 28
   final bool isTaxIncluded; // true = Tax Included, false = Tax Excluded
+  final String imageBase64;
   final double stockQuantity;
   final double minStockAlert;
   final String unit; // 'Pcs', 'Kg', 'Gm', 'Ltr', 'Box', 'Meter'
@@ -33,6 +34,7 @@ class Product {
     double? mrp,
     this.gstRate = 0.0,
     this.isTaxIncluded = false,
+    this.imageBase64 = '',
     this.stockQuantity = 0.0,
     this.minStockAlert = 5.0,
     this.unit = 'Pcs',
@@ -62,6 +64,7 @@ class Product {
       'mrp': mrp,
       'gstRate': gstRate,
       'isTaxIncluded': isTaxIncluded ? 1 : 0,
+      'imageBase64': imageBase64,
       'stockQuantity': stockQuantity,
       'minStockAlert': minStockAlert,
       'unit': unit,
@@ -88,6 +91,7 @@ class Product {
       mrp: (map['mrp'] as num?)?.toDouble() ?? ((map['sellingPrice'] as num?)?.toDouble() ?? 0.0),
       gstRate: (map['gstRate'] as num?)?.toDouble() ?? 0.0,
       isTaxIncluded: (map['isTaxIncluded'] == 1 || map['isTaxIncluded'] == true),
+      imageBase64: map['imageBase64'] ?? '',
       stockQuantity: (map['stockQuantity'] as num?)?.toDouble() ?? 0.0,
       minStockAlert: (map['minStockAlert'] as num?)?.toDouble() ?? 5.0,
       unit: map['unit'] ?? 'Pcs',
@@ -113,6 +117,7 @@ class Product {
     double? mrp,
     double? gstRate,
     bool? isTaxIncluded,
+    String? imageBase64,
     double? stockQuantity,
     double? minStockAlert,
     String? unit,
@@ -136,6 +141,7 @@ class Product {
       mrp: mrp ?? this.mrp,
       gstRate: gstRate ?? this.gstRate,
       isTaxIncluded: isTaxIncluded ?? this.isTaxIncluded,
+      imageBase64: imageBase64 ?? this.imageBase64,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       minStockAlert: minStockAlert ?? this.minStockAlert,
       unit: unit ?? this.unit,

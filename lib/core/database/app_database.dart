@@ -39,6 +39,7 @@ class AppDatabase {
         ),
       );
       try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN imageBase64 TEXT'); } catch (_) {}
       return db;
     } else {
       final dbPath = await getDatabasesPath();
@@ -50,6 +51,7 @@ class AppDatabase {
         onUpgrade: _upgradeDB,
       );
       try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN imageBase64 TEXT'); } catch (_) {}
       return db;
     }
   }
@@ -95,6 +97,7 @@ class AppDatabase {
         mrp REAL,
         gstRate REAL DEFAULT 0.0,
         isTaxIncluded INTEGER DEFAULT 0,
+        imageBase64 TEXT,
         stockQuantity REAL DEFAULT 0.0,
         minStockAlert REAL DEFAULT 5.0,
         unit TEXT DEFAULT 'Pcs',

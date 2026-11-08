@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -202,19 +203,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 padding: const EdgeInsets.all(12),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        color: p.isLowStock
-                                            ? AppTheme.danger.withAlpha(20)
-                                            : AppTheme.primary.withAlpha(20),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.inventory_2,
-                                        color: p.isLowStock ? AppTheme.danger : AppTheme.primary,
-                                      ),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: p.imageBase64.isNotEmpty
+                                          ? Image.memory(
+                                              base64Decode(p.imageBase64),
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                width: 48,
+                                                height: 48,
+                                                color: p.isLowStock
+                                                    ? AppTheme.danger.withAlpha(20)
+                                                    : AppTheme.primary.withAlpha(20),
+                                                child: Icon(
+                                                  Icons.inventory_2,
+                                                  color: p.isLowStock ? AppTheme.danger : AppTheme.primary,
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                color: p.isLowStock
+                                                    ? AppTheme.danger.withAlpha(20)
+                                                    : AppTheme.primary.withAlpha(20),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                Icons.inventory_2,
+                                                color: p.isLowStock ? AppTheme.danger : AppTheme.primary,
+                                              ),
+                                            ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(

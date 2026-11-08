@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
+import 'package:image/image.dart' as img;
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -34,6 +37,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   double _gstRate = 0.0;
   bool _isTaxIncluded = false;
+  String _imageBase64 = '';
+  bool _isPickingImage = false;
   String _unit = 'Pcs';
   DateTime? _expiryDate;
   bool _isSaving = false;
@@ -59,6 +64,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
     _gstRate = p?.gstRate ?? 0.0;
     _isTaxIncluded = p?.isTaxIncluded ?? false;
+    _imageBase64 = p?.imageBase64 ?? '';
     _unit = p?.unit ?? 'Pcs';
     _expiryDate = p?.expiryDate;
   }
@@ -87,6 +93,40 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     });
   }
 
+  Future<void> _pickImage() async {
+    setState(() => _isPickingImage = true);
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.image,
+      );
+      if (files.isNotEmpty) {
+        final file = files.first;
+        final bytes = await file.readAsBytes();
+        final decoded = img.decodeImage(bytes);
+        if (decoded != null) {
+          final resized = img.copyResize(decoded, width: decoded.width > 600 ? 600 : decoded.width);
+          final jpgBytes = img.encodeJpg(resized, quality: 75);
+          setState(() {
+            _imageBase64 = base64Encode(jpgBytes);
+          });
+        } else {
+          setState(() {
+            _imageBase64 = base64Encode(bytes);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
+  }
+
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -113,6 +153,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       mrp: mrp,
       gstRate: _gstRate,
       isTaxIncluded: _isTaxIncluded,
+      imageBase64: _imageBase64,
       stockQuantity: stock,
       minStockAlert: alert,
       unit: _unit,
@@ -185,6 +226,85 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Product Photo Upload (Optional)
+                  Center(
+                    child: Column(
+                      children: [
+                        InkWell(
+                          onTap: _isPickingImage ? null : _pickImage,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _imageBase64.isNotEmpty ? AppTheme.primary : Colors.grey.shade300,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: _isPickingImage
+                                ? const Center(child: CircularProgressIndicator())
+                                : _imageBase64.isNotEmpty
+                                    ? Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(14),
+                                            child: Image.memory(
+                                              base64Decode(_imageBase64),
+                                              width: 130,
+                                              height: 130,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: InkWell(
+                                              onTap: () => setState(() => _imageBase64 = ''),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black54,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.add_a_photo_outlined, size: 36, color: Colors.grey.shade600),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Add Photo',
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                                          ),
+                                          Text(
+                                            '(Optional)',
+                                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                          ),
+                                        ],
+                                      ),
+                          ),
+                        ),
+                        if (_imageBase64.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: _pickImage,
+                            icon: const Icon(Icons.edit, size: 14),
+                            label: const Text('Change Photo', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+
                   // Basic Details
                   _buildSectionTitle('General Information'),
                   const SizedBox(height: 12),
@@ -357,7 +477,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _isTaxIncluded ? 'Tax Included (വിലയിൽ VAT ഉൾപ്പെട്ടിട്ടുണ്ട്)' : 'Tax Excluded (വിലയിൽ VAT ഉൾപ്പെട്ടിട്ടില്ല)',
+                                  _isTaxIncluded ? 'Tax Included (Price includes VAT)' : 'Tax Excluded (Price excludes VAT)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
