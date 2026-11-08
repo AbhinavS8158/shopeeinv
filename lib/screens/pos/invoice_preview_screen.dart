@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/invoice.dart';
 import '../../core/models/shop_profile.dart';
 import '../../core/services/invoice_pdf_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/product_provider.dart';
 
 class InvoicePreviewScreen extends StatefulWidget {
   final ShopProfile shop;
@@ -148,7 +150,8 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                   backgroundColor: AppTheme.success,
                 ),
                 onPressed: () {
-                  Navigator.pop(context);
+                  Provider.of<ProductProvider>(context, listen: false).loadProducts(widget.shop.id);
+                  Navigator.pop(context, true);
                 },
               ),
             ),

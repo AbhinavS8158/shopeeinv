@@ -165,13 +165,24 @@ class _PosScreenState extends State<PosScreen> {
         _paymentMode = 'cash';
       });
 
+      // Reload products right away so stock in memory is updated
+      await Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
+
+      if (!mounted) return;
+
       // Navigate to PDF Preview & Printing
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => InvoicePreviewScreen(shop: shop, invoice: invoice),
         ),
       );
+
+      // When returning from DONE / NEW BILL, ensure products are reloaded and UI updated immediately
+      if (mounted) {
+        await Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
+        setState(() {});
+      }
     }
   }
 
