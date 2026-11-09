@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/models/customer.dart';
+import '../../core/models/product.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/billing_provider.dart';
 import '../../providers/cart_provider.dart';
@@ -74,11 +75,21 @@ class _PosScreenState extends State<PosScreen> {
     final product = productProvider.findByBarcode(barcode.trim());
     if (product != null) {
       cartProvider.addToCart(product);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Added ${product.name} to cart'),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Added ${product.name} (+1)', maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
           duration: const Duration(milliseconds: 700),
           backgroundColor: AppTheme.success,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } else {
@@ -280,10 +291,19 @@ class _PosScreenState extends State<PosScreen> {
       length: 2,
       child: Column(
         children: [
-          const TabBar(
+          TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.grid_view), text: 'Products'),
-              Tab(icon: Icon(Icons.shopping_cart), text: 'Cart & Bill'),
+              const Tab(icon: Icon(Icons.grid_view), text: 'Products'),
+              Consumer<CartProvider>(
+                builder: (_, cart, __) => Tab(
+                  icon: Badge.count(
+                    count: cart.itemCount,
+                    isLabelVisible: cart.itemCount > 0,
+                    child: const Icon(Icons.shopping_cart),
+                  ),
+                  text: 'Cart & Bill',
+                ),
+              ),
             ],
           ),
           Expanded(
@@ -389,8 +409,8 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Widget _buildProductGrid() {
-    return Consumer<ProductProvider>(
-      builder: (ctx, prodProvider, _) {
+    return Consumer2<ProductProvider, CartProvider>(
+      builder: (ctx, prodProvider, cartProvider, _) {
         if (prodProvider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -418,90 +438,38 @@ class _PosScreenState extends State<PosScreen> {
           itemCount: products.length,
           itemBuilder: (context, index) {
             final p = products[index];
-            return Card(
-              elevation: 1.5,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  Provider.of<CartProvider>(context, listen: false).addToCart(p);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withAlpha(20),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              p.category,
-                              style: const TextStyle(fontSize: 10, color: AppTheme.primary, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          Text(
-                            'Stock: ${p.stockQuantity.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: p.isLowStock ? AppTheme.danger : AppTheme.success,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (p.imageBase64.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.memory(
-                              base64Decode(p.imageBase64),
-                              height: 38,
-                              width: 38,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                            ),
+            final cartIndex = cartProvider.items.indexWhere((item) => item.product.id == p.id);
+            final inCartQty = cartIndex >= 0 ? cartProvider.items[cartIndex].quantity.toInt() : 0;
+
+            return _AnimatedProductCard(
+              product: p,
+              inCartQty: inCartQty,
+              currencyFormat: currencyFormat,
+              onAdd: () {
+                cartProvider.addToCart(p);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Added ${p.name} (+1)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
-                      const Spacer(),
-                      Text(
-                        p.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            currencyFormat.format(p.sellingPrice),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add, color: Colors.white, size: 16),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
+                    duration: const Duration(milliseconds: 650),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppTheme.success,
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -749,6 +717,216 @@ class _PosScreenState extends State<PosScreen> {
           Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+
+class _AnimatedProductCard extends StatefulWidget {
+  final Product product;
+  final int inCartQty;
+  final NumberFormat currencyFormat;
+  final VoidCallback onAdd;
+
+  const _AnimatedProductCard({
+    required this.product,
+    required this.inCartQty,
+    required this.currencyFormat,
+    required this.onAdd,
+  });
+
+  @override
+  State<_AnimatedProductCard> createState() => _AnimatedProductCardState();
+}
+
+class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isAnimating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
+      lowerBound: 0.92,
+      upperBound: 1.0,
+    )..value = 1.0;
+    _scaleAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleTap() async {
+    widget.onAdd();
+    if (mounted) setState(() => _isAnimating = true);
+    await _controller.reverse();
+    if (mounted) {
+      await _controller.forward();
+    }
+    await Future.delayed(const Duration(milliseconds: 320));
+    if (mounted) {
+      setState(() => _isAnimating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.product;
+    final hasInCart = widget.inCartQty > 0;
+
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isAnimating
+                ? AppTheme.success
+                : (hasInCart ? AppTheme.primary.withAlpha(140) : Colors.transparent),
+            width: _isAnimating ? 2.0 : (hasInCart ? 1.5 : 0.0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _isAnimating
+                  ? AppTheme.success.withAlpha(60)
+                  : (hasInCart ? AppTheme.primary.withAlpha(35) : Colors.black.withAlpha(12)),
+              blurRadius: _isAnimating ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: _handleTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          p.category,
+                          style: const TextStyle(fontSize: 10, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (hasInCart)
+                        AnimatedScale(
+                          scale: _isAnimating ? 1.2 : 1.0,
+                          duration: const Duration(milliseconds: 160),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.shopping_bag, size: 10, color: Colors.white),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${widget.inCartQty}',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          'Stock: ${p.stockQuantity.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: p.isLowStock ? AppTheme.danger : AppTheme.success,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (p.imageBase64.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(
+                          base64Decode(p.imageBase64),
+                          height: 38,
+                          width: 38,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    p.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.currencyFormat.format(p.sellingPrice),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: _isAnimating ? AppTheme.success : AppTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            _isAnimating ? Icons.check : Icons.add,
+                            key: ValueKey(_isAnimating),
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
