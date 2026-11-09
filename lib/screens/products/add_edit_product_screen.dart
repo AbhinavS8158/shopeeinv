@@ -600,6 +600,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                                 : (catList.isNotEmpty ? catList.first : 'General');
                             return DropdownButtonFormField<String>(
                               value: currentVal,
+                              isExpanded: true,
                               decoration: InputDecoration(
                                 labelText: 'Category *',
                                 prefixIcon: const Icon(Icons.category),
@@ -646,6 +647,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           value: _unit,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Unit of Measure',
                             prefixIcon: Icon(Icons.straighten),
@@ -838,6 +840,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                                   flex: 2,
                                   child: DropdownButtonFormField<String>(
                                     value: _weightUnit,
+                                    isExpanded: true,
                                     decoration: const InputDecoration(
                                       labelText: 'Weight Unit',
                                       prefixIcon: Icon(Icons.straighten),
@@ -947,6 +950,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       Expanded(
                         child: DropdownButtonFormField<double>(
                           value: _gstRate,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'VAT Tax Rate',
                             prefixIcon: Icon(Icons.percent),
@@ -1068,14 +1072,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                               flex: 3,
                               child: DropdownButtonFormField<String>(
                                 value: _discountType,
+                                isExpanded: true,
                                 decoration: const InputDecoration(
                                   labelText: 'Discount Type',
                                   prefixIcon: Icon(Icons.percent),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'none', child: Text('No Default Discount')),
-                                  DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
-                                  DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)')),
+                                  DropdownMenuItem(value: 'none', child: Text('No Default Discount', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)', overflow: TextOverflow.ellipsis)),
                                 ],
                                 onChanged: (val) {
                                   if (val != null) setState(() => _discountType = val);
@@ -1110,22 +1115,26 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         ),
                         const Divider(height: 32),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Row(
-                              children: const [
-                                Icon(Icons.layers_outlined, color: Colors.indigo, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Quantity-Based Pricing (Bulk Pricing)',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                              ],
+                            const Icon(Icons.layers_outlined, color: Colors.indigo, size: 20),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Quantity-Based Bulk Pricing',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             TextButton.icon(
                               onPressed: _showAddTierDialog,
-                              icon: const Icon(Icons.add, size: 18),
+                              icon: const Icon(Icons.add, size: 16),
                               label: const Text('Add Tier'),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
                             ),
                           ],
                         ),
@@ -1159,31 +1168,28 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                                   : '${tier.minQty.toInt()}+ $_unit';
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: Colors.indigo.shade50.withOpacity(0.5),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: Colors.indigo.shade100),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: const [
-                                        Icon(Icons.check_circle_outline, size: 16, color: Colors.indigo),
-                                        SizedBox(width: 8),
-                                      ],
+                                    const Icon(Icons.check_circle_outline, size: 16, color: Colors.indigo),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        rangeText,
+                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    Text(
-                                      rangeText,
-                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                                    ),
-                                    const Spacer(),
                                     Text(
                                       'Rs. ${tier.unitPrice.toStringAsFixed(2)} / $_unit',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 12),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
                                       padding: EdgeInsets.zero,
