@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -76,6 +77,14 @@ class _PosScreenState extends State<PosScreen> {
 
     final product = productProvider.findByBarcode(barcode.trim());
     if (product != null) {
+      final inCartIdx = cartProvider.items.indexWhere((i) => i.product.id == product.id);
+      final currentInCart = inCartIdx >= 0 ? cartProvider.items[inCartIdx].quantity : 0.0;
+      if (currentInCart + 1 > product.stockQuantity) {
+        _showOutOfStockDialog(product, requestedQty: currentInCart + 1);
+        _barcodeInputController.clear();
+        _barcodeFocusNode.requestFocus();
+        return;
+      }
       final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
       cartProvider.addToCart(product, comboOffers: activeOffers);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -198,6 +207,403 @@ class _PosScreenState extends State<PosScreen> {
         setState(() {});
       }
     }
+  }
+
+  void _showOutOfStockDialog(Product product, {double? requestedQty}) {
+    final available = product.stockQuantity;
+    final isCompletelyOut = available <= 0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isCompletelyOut ? Colors.red.shade50 : Colors.amber.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isCompletelyOut ? Icons.block : Icons.warning_amber_rounded,
+                color: isCompletelyOut ? Colors.red.shade700 : Colors.amber.shade800,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isCompletelyOut ? 'Out of Stock!' : 'Insufficient Stock!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isCompletelyOut ? Colors.red.shade800 : Colors.amber.shade900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              product.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Available Stock:', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                      Text(
+                        '${available % 1 == 0 ? available.toInt() : available} ${product.unit}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isCompletelyOut ? Colors.red : Colors.green.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (requestedQty != null) ...[
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Requested Quantity:', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                        Text(
+                          '${requestedQty % 1 == 0 ? requestedQty.toInt() : requestedQty} ${product.unit}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isCompletelyOut
+                  ? 'This product is currently out of stock. Please add stock before billing.'
+                  : 'Requested quantity exceeds the available inventory. You can only bill up to ${available.toInt()} ${product.unit}.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.3),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+          if (!isCompletelyOut && requestedQty != null && requestedQty > available)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+              onPressed: () {
+                final cart = Provider.of<CartProvider>(context, listen: false);
+                final comboOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+                cart.updateQuantity(product.id, available, comboOffers: comboOffers);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Added maximum available stock (${available.toInt()} ${product.unit}) to cart.'),
+                    backgroundColor: AppTheme.success,
+                  ),
+                );
+              },
+              child: Text('Add Max Available (${available.toInt()})'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showProductHoldMenu(Product product, int inCartQty) {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final comboOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+
+    final existingIndex = cart.items.indexWhere((item) => item.product.id == product.id);
+    double currentQty = existingIndex >= 0 ? cart.items[existingIndex].quantity : 1.0;
+    final qtyController = TextEditingController(
+      text: currentQty % 1 == 0 ? currentQty.toInt().toString() : currentQty.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final enteredQty = double.tryParse(qtyController.text.trim()) ?? 0.0;
+          final currentUnitPrice = product.getUnitPriceForQty(enteredQty > 0 ? enteredQty : 1.0);
+          final estTotal = currentUnitPrice * enteredQty;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.touch_app, color: AppTheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${currencyFormat.format(product.sellingPrice)} / ${product.unit}',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (existingIndex >= 0)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.shopping_cart, size: 16, color: Colors.green),
+                            SizedBox(width: 6),
+                            Text('Currently in Cart:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        Text(
+                          '${currentQty % 1 == 0 ? currentQty.toInt() : currentQty} ${product.unit}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const Text(
+                  'Manage Quantity',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 10),
+
+                // Quantity +/- and Text Input row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Decrement button
+                    Material(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          double q = double.tryParse(qtyController.text.trim()) ?? 1.0;
+                          if (q > 1) {
+                            q -= 1;
+                            setDlgState(() {
+                              qtyController.text = q % 1 == 0 ? q.toInt().toString() : q.toString();
+                            });
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(Icons.remove, size: 22, color: AppTheme.primaryDark),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Quantity Text Box
+                    SizedBox(
+                      width: 90,
+                      child: TextField(
+                        controller: qtyController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          suffixText: product.unit,
+                          suffixStyle: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                        ),
+                        onChanged: (_) => setDlgState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Increment button
+                    Material(
+                      color: AppTheme.primary.withAlpha(30),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          double q = double.tryParse(qtyController.text.trim()) ?? 0.0;
+                          if (q + 1 > product.stockQuantity) {
+                            _showOutOfStockDialog(product, requestedQty: q + 1);
+                            return;
+                          }
+                          q += 1;
+                          setDlgState(() {
+                            qtyController.text = q % 1 == 0 ? q.toInt().toString() : q.toString();
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(Icons.add, size: 22, color: AppTheme.primary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Estimated line total
+                Text(
+                  'Item Total: ${currencyFormat.format(estTotal)}',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                ),
+              ],
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              Row(
+                children: [
+                  // If product is in cart, show "Deselect / Remove" button
+                  if (existingIndex >= 0)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.danger,
+                          side: const BorderSide(color: AppTheme.danger),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.remove_shopping_cart, size: 18),
+                        label: const Text('Deselect', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          cart.removeFromCart(product.id, comboOffers: comboOffers);
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.remove_circle_outline, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text('Deselected ${product.name} from cart')),
+                                ],
+                              ),
+                              backgroundColor: AppTheme.danger,
+                              duration: const Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  // Update / Apply Quantity button
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                      label: Text(
+                        existingIndex >= 0 ? 'Update Qty' : 'Add to Cart',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        final q = double.tryParse(qtyController.text.trim()) ?? 0.0;
+                        if (q > product.stockQuantity) {
+                          _showOutOfStockDialog(product, requestedQty: q);
+                          return;
+                        }
+                        if (q <= 0) {
+                          if (existingIndex >= 0) {
+                            cart.removeFromCart(product.id, comboOffers: comboOffers);
+                          }
+                        } else {
+                          if (existingIndex >= 0) {
+                            cart.updateQuantity(product.id, q, comboOffers: comboOffers);
+                          } else {
+                            cart.addToCart(product, quantity: q, comboOffers: comboOffers);
+                          }
+                        }
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    q <= 0
+                                        ? 'Removed ${product.name} from cart'
+                                        : 'Updated ${product.name} (${q % 1 == 0 ? q.toInt() : q} ${product.unit})',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: AppTheme.success,
+                            duration: const Duration(milliseconds: 900),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showItemDiscountDialog(CartItem item) {
@@ -443,6 +849,16 @@ class _PosScreenState extends State<PosScreen> {
                                   backgroundColor: isApplied ? Colors.teal : AppTheme.primary,
                                 ),
                                 onPressed: () {
+                                  for (final ci in offer.items) {
+                                    final p = products.firstWhere(
+                                      (prod) => prod.id == ci.productId,
+                                      orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                    );
+                                    if (p.id.isNotEmpty && ci.quantity > p.stockQuantity) {
+                                      _showOutOfStockDialog(p, requestedQty: ci.quantity);
+                                      return;
+                                    }
+                                  }
                                   for (final ci in offer.items) {
                                     final p = products.firstWhere(
                                       (prod) => prod.id == ci.productId,
@@ -740,7 +1156,12 @@ class _PosScreenState extends State<PosScreen> {
               product: p,
               inCartQty: inCartQty,
               currencyFormat: currencyFormat,
+              onHold: () => _showProductHoldMenu(p, inCartQty),
               onAdd: () {
+                if (inCartQty + 1 > p.stockQuantity) {
+                  _showOutOfStockDialog(p, requestedQty: (inCartQty + 1).toDouble());
+                  return;
+                }
                 final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
                 cartProvider.addToCart(p, comboOffers: activeOffers);
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -899,7 +1320,13 @@ class _PosScreenState extends State<PosScreen> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.add_circle_outline, size: 20),
-                                      onPressed: () => cart.updateQuantity(item.product.id, item.quantity + 1, comboOffers: activeOffers),
+                                      onPressed: () {
+                                        if (item.quantity + 1 > item.product.stockQuantity) {
+                                          _showOutOfStockDialog(item.product, requestedQty: item.quantity + 1);
+                                          return;
+                                        }
+                                        cart.updateQuantity(item.product.id, item.quantity + 1, comboOffers: activeOffers);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -1125,12 +1552,14 @@ class _AnimatedProductCard extends StatefulWidget {
   final int inCartQty;
   final NumberFormat currencyFormat;
   final VoidCallback onAdd;
+  final VoidCallback onHold;
 
   const _AnimatedProductCard({
     required this.product,
     required this.inCartQty,
     required this.currencyFormat,
     required this.onAdd,
+    required this.onHold,
   });
 
   @override
@@ -1213,6 +1642,11 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleT
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: _handleTap,
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              widget.onHold();
+            },
+            onSecondaryTap: widget.onHold,
             child: Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
@@ -1236,22 +1670,31 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleT
                         AnimatedScale(
                           scale: _isAnimating ? 1.2 : 1.0,
                           duration: const Duration(milliseconds: 160),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.shopping_bag, size: 10, color: Colors.white),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '${widget.inCartQty}',
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ],
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              widget.onHold();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.shopping_bag, size: 10, color: Colors.white),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${widget.inCartQty}',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  const Icon(Icons.more_vert, size: 10, color: Colors.white),
+                                ],
+                              ),
                             ),
                           ),
                         )

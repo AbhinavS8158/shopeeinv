@@ -130,34 +130,53 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToCart(Product product, {double quantity = 1.0, List<ComboOffer>? comboOffers}) {
+  /// Returns null on success, or an error message if out of stock
+  String? addToCart(Product product, {double quantity = 1.0, List<ComboOffer>? comboOffers, bool enforceStock = true}) {
     final index = _items.indexWhere((i) => i.product.id == product.id);
+    final currentQty = index >= 0 ? _items[index].quantity : 0.0;
+    final targetQty = currentQty + quantity;
+
+    if (enforceStock && product.stockQuantity <= 0) {
+      return 'Out of Stock! "${product.name}" has 0 stock available.';
+    }
+    if (enforceStock && targetQty > product.stockQuantity) {
+      return 'Insufficient Stock! Only ${product.stockQuantity.toInt()} ${product.unit} available.';
+    }
+
     if (index >= 0) {
-      _items[index].quantity += quantity;
+      _items[index].quantity = targetQty;
       _items[index].recalculatePricing();
     } else {
-      _items.add(CartItem(product: product, quantity: quantity));
+      _items.add(CartItem(product: product, quantity: targetQty));
     }
     if (comboOffers != null) {
       evaluateCombos(comboOffers);
     }
     notifyListeners();
+    return null;
   }
 
-  void updateQuantity(String productId, double quantity, {List<ComboOffer>? comboOffers}) {
+  /// Returns null on success, or an error message if out of stock
+  String? updateQuantity(String productId, double quantity, {List<ComboOffer>? comboOffers, bool enforceStock = true}) {
     if (quantity <= 0) {
       removeFromCart(productId, comboOffers: comboOffers);
-      return;
+      return null;
     }
     final index = _items.indexWhere((i) => i.product.id == productId);
     if (index >= 0) {
+      final product = _items[index].product;
+      if (enforceStock && quantity > product.stockQuantity) {
+        return 'Insufficient Stock! Only ${product.stockQuantity.toInt()} ${product.unit} available.';
+      }
       _items[index].quantity = quantity;
       _items[index].recalculatePricing();
       if (comboOffers != null) {
         evaluateCombos(comboOffers);
       }
       notifyListeners();
+      return null;
     }
+    return 'Product not found in cart';
   }
 
   String? setItemDiscount(String productId, {required String discountType, required double discountValue}) {
