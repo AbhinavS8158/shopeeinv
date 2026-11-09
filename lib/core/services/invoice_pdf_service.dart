@@ -308,7 +308,8 @@ class InvoicePdfService {
                       ),
                       pw.Expanded(
                         flex: 2,
-                        child: pw.Text('${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 1)} ${item.unit}',
+                        child: pw.Text(
+                            '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.unit}',
                             textAlign: pw.TextAlign.center,
                             style: const pw.TextStyle(fontSize: 6.5)),
                       ),

@@ -120,6 +120,40 @@ class Product {
     return 0.0;
   }
 
+  bool get isWeightBased {
+    final u = unit.toLowerCase().trim();
+    if (u == 'kg' || u == 'gm' || u == 'g' || u == 'gram' || u == 'grams') return true;
+    final cat = category.toLowerCase().trim();
+    if (cat.contains('veg') ||
+        cat.contains('rice') ||
+        cat.contains('grain') ||
+        cat.contains('fruit') ||
+        cat.contains('spice') ||
+        cat.contains('grocery') ||
+        cat.contains('flour') ||
+        cat.contains('dal') ||
+        cat.contains('meat') ||
+        cat.contains('fish')) {
+      return true;
+    }
+    final n = name.toLowerCase().trim();
+    if (n.contains('rice') ||
+        n.contains('grain') ||
+        n.contains('onion') ||
+        n.contains('potato') ||
+        n.contains('tomato') ||
+        n.contains('dal') ||
+        n.contains('sugar') ||
+        n.contains('wheat') ||
+        n.contains('atta') ||
+        n.contains('chilli') ||
+        n.contains('oil') ||
+        n.contains('powder')) {
+      return true;
+    }
+    return false;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

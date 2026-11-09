@@ -77,6 +77,11 @@ class _PosScreenState extends State<PosScreen> {
 
     final product = productProvider.findByBarcode(barcode.trim());
     if (product != null) {
+      if (product.isWeightBased) {
+        _barcodeInputController.clear();
+        _showWeightInputDialog(product);
+        return;
+      }
       final inCartIdx = cartProvider.items.indexWhere((i) => i.product.id == product.id);
       final currentInCart = inCartIdx >= 0 ? cartProvider.items[inCartIdx].quantity : 0.0;
       if (currentInCart + 1 > product.stockQuantity) {
@@ -207,6 +212,362 @@ class _PosScreenState extends State<PosScreen> {
         setState(() {});
       }
     }
+  }
+
+  void _showWeightInputDialog(Product product, {CartItem? existingItem}) {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final comboOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+
+    final inCartIdx = existingItem == null
+        ? cart.items.indexWhere((i) => i.product.id == product.id)
+        : -1;
+    final CartItem? item = existingItem ?? (inCartIdx >= 0 ? cart.items[inCartIdx] : null);
+
+    double initialWeightKg = item?.quantity ?? 1.0;
+    String mode = 'kg'; // 'kg' or 'gm'
+
+    final weightController = TextEditingController(
+      text: initialWeightKg % 1 == 0
+          ? initialWeightKg.toInt().toString()
+          : initialWeightKg.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), ''),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final rawVal = double.tryParse(weightController.text.trim()) ?? 0.0;
+          final finalWeightKg = mode == 'gm' ? rawVal / 1000.0 : rawVal;
+          final unitPrice = product.getUnitPriceForQty(finalWeightKg > 0 ? finalWeightKg : 1.0);
+          final estTotal = unitPrice * finalWeightKg;
+          final isExceedingStock = finalWeightKg > product.stockQuantity;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.scale, color: Colors.teal, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Price: ${currencyFormat.format(product.sellingPrice)} / ${product.unit}',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Unit Toggle: Kg vs Gm
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              if (mode != 'kg') {
+                                setDlgState(() {
+                                  mode = 'kg';
+                                  if (rawVal > 0) {
+                                    final converted = rawVal / 1000.0;
+                                    weightController.text = converted.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+                                  }
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: mode == 'kg' ? Colors.teal : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Kilograms (Kg)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: mode == 'kg' ? Colors.white : Colors.blueGrey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              if (mode != 'gm') {
+                                setDlgState(() {
+                                  mode = 'gm';
+                                  if (rawVal > 0) {
+                                    final converted = (rawVal * 1000.0).round();
+                                    weightController.text = converted.toString();
+                                  }
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: mode == 'gm' ? Colors.teal : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Grams (Gm)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: mode == 'gm' ? Colors.white : Colors.blueGrey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Weight Input Box
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: weightController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.teal),
+                          decoration: InputDecoration(
+                            labelText: mode == 'kg' ? 'Weight in Kg' : 'Weight in Grams (Gm)',
+                            hintText: mode == 'kg' ? 'e.g. 1.250' : 'e.g. 500',
+                            prefixIcon: const Icon(Icons.scale, color: Colors.teal),
+                            suffixText: mode == 'kg' ? 'Kg' : 'Gm',
+                            suffixStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.teal),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (_) => setDlgState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.backspace_outlined, color: Colors.blueGrey),
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          weightController.clear();
+                          setDlgState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Quick Weight Preset Buttons
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Quick Presets:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _buildPresetChip('100g', () {
+                        setDlgState(() {
+                          mode = 'gm';
+                          weightController.text = '100';
+                        });
+                      }),
+                      _buildPresetChip('250g', () {
+                        setDlgState(() {
+                          mode = 'gm';
+                          weightController.text = '250';
+                        });
+                      }),
+                      _buildPresetChip('500g', () {
+                        setDlgState(() {
+                          mode = 'gm';
+                          weightController.text = '500';
+                        });
+                      }),
+                      _buildPresetChip('1 Kg', () {
+                        setDlgState(() {
+                          mode = 'kg';
+                          weightController.text = '1';
+                        });
+                      }),
+                      _buildPresetChip('2 Kg', () {
+                        setDlgState(() {
+                          mode = 'kg';
+                          weightController.text = '2';
+                        });
+                      }),
+                      _buildPresetChip('5 Kg', () {
+                        setDlgState(() {
+                          mode = 'kg';
+                          weightController.text = '5';
+                        });
+                      }),
+                      _buildPresetChip('10 Kg', () {
+                        setDlgState(() {
+                          mode = 'kg';
+                          weightController.text = '10';
+                        });
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Calculations Summary Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isExceedingStock ? Colors.red.shade50 : Colors.teal.shade50.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isExceedingStock ? Colors.red.shade300 : Colors.teal.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Calculated Weight:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                            Text(
+                              '${finalWeightKg.toStringAsFixed(3)} Kg',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total Amount:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                              currencyFormat.format(estTotal),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal),
+                            ),
+                          ],
+                        ),
+                        if (isExceedingStock) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber, size: 14, color: Colors.red),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Exceeds available stock (${product.stockQuantity} ${product.unit})',
+                                  style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isExceedingStock ? Colors.grey : Colors.teal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                label: Text(
+                  item != null ? 'Update Weight' : 'Add to Bill',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                onPressed: isExceedingStock
+                    ? () => _showOutOfStockDialog(product, requestedQty: finalWeightKg)
+                    : () {
+                        if (finalWeightKg <= 0) return;
+                        if (item != null) {
+                          cart.updateQuantity(product.id, finalWeightKg, comboOffers: comboOffers);
+                        } else {
+                          cart.addToCart(product, quantity: finalWeightKg, comboOffers: comboOffers);
+                        }
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.scale, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Added ${product.name} (${finalWeightKg.toStringAsFixed(3)} Kg)'),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.teal,
+                            duration: const Duration(milliseconds: 900),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.teal.shade300),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.teal),
+        ),
+      ),
+    );
   }
 
   void _showOutOfStockDialog(Product product, {double? requestedQty}) {
@@ -494,6 +855,17 @@ class _PosScreenState extends State<PosScreen> {
                 Text(
                   'Item Total: ${currencyFormat.format(estTotal)}',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  icon: const Icon(Icons.scale, size: 16, color: Colors.teal),
+                  label: const Text('Enter Custom Weight (Kg / Gm)',
+                      style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold, fontSize: 12)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showWeightInputDialog(product,
+                        existingItem: existingIndex >= 0 ? cart.items[existingIndex] : null);
+                  },
                 ),
               ],
             ),
@@ -1158,6 +1530,10 @@ class _PosScreenState extends State<PosScreen> {
               currencyFormat: currencyFormat,
               onHold: () => _showProductHoldMenu(p, inCartQty),
               onAdd: () {
+                if (p.isWeightBased) {
+                  _showWeightInputDialog(p);
+                  return;
+                }
                 if (inCartQty + 1 > p.stockQuantity) {
                   _showOutOfStockDialog(p, requestedQty: (inCartQty + 1).toDouble());
                   return;
@@ -1280,11 +1656,41 @@ class _PosScreenState extends State<PosScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        item.product.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              item.product.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          InkWell(
+                                            onTap: () => _showWeightInputDialog(item.product, existingItem: item),
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: Colors.teal.shade50,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: Colors.teal.shade300, width: 0.8),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.scale, size: 10, color: Colors.teal),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.product.unit}',
+                                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       Text(
                                         '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
@@ -1314,9 +1720,16 @@ class _PosScreenState extends State<PosScreen> {
                                       icon: const Icon(Icons.remove_circle_outline, size: 20),
                                       onPressed: () => cart.updateQuantity(item.product.id, item.quantity - 1, comboOffers: activeOffers),
                                     ),
-                                    Text(
-                                      '${item.quantity.toStringAsFixed(0)}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    InkWell(
+                                      onTap: () => _showWeightInputDialog(item.product, existingItem: item),
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                                        child: Text(
+                                          item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), ""),
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                      ),
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.add_circle_outline, size: 20),
@@ -1655,16 +2068,40 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleT
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withAlpha(20),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          p.category,
-                          style: const TextStyle(fontSize: 10, color: AppTheme.primary, fontWeight: FontWeight.w600),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withAlpha(20),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              p.category,
+                              style: const TextStyle(fontSize: 10, color: AppTheme.primary, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (p.isWeightBased) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.teal.shade200, width: 0.8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.scale, size: 9, color: Colors.teal),
+                                  SizedBox(width: 2),
+                                  Text('Weight', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.teal)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       if (hasInCart)
                         AnimatedScale(
