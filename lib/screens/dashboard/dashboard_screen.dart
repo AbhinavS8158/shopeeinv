@@ -17,6 +17,8 @@ import '../pos/invoice_preview_screen.dart';
 import '../pos/pos_screen.dart';
 import '../products/product_list_screen.dart';
 import '../settings/shop_settings_screen.dart';
+import '../promotions/combo_offers_screen.dart';
+import '../../providers/combo_offer_provider.dart';
 import '../../core/services/license_request_service.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/license_status_screen.dart';
@@ -63,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Provider.of<BillingProvider>(context, listen: false).loadInvoices(shop.id);
         Provider.of<CustomerProvider>(context, listen: false).loadCustomers(shop.id);
         Provider.of<CashRegisterProvider>(context, listen: false).loadTodaySession(shop.id);
+        Provider.of<ComboOfferProvider>(context, listen: false).loadComboOffers(shop.id);
       }
     });
   }
@@ -694,6 +697,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }),
                 _buildActionBtn('Customers', Icons.people, Colors.teal, () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerListScreen())).then((_) => _refreshAll());
+                }),
+                _buildActionBtn('Combo Offers', Icons.local_offer, Colors.orange, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ComboOffersScreen())).then((_) => _refreshAll());
                 }),
               ],
             ),

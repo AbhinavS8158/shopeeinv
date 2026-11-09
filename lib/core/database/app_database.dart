@@ -40,6 +40,30 @@ class AppDatabase {
       );
       try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
       try { await db.execute('ALTER TABLE products ADD COLUMN imageBase64 TEXT'); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN discountType TEXT DEFAULT 'none'"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN discountValue REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN maxDiscountPercent REAL DEFAULT 100.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN tierPricingJson TEXT DEFAULT ''"); } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS combo_offers (
+            id TEXT PRIMARY KEY,
+            shopId TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            offerType TEXT NOT NULL,
+            comboPrice REAL DEFAULT 0.0,
+            discountPercentage REAL DEFAULT 0.0,
+            itemsJson TEXT NOT NULL,
+            startDate TEXT,
+            endDate TEXT,
+            isActive INTEGER DEFAULT 1,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+      } catch (_) {}
       return db;
     } else {
       final dbPath = await getDatabasesPath();
@@ -52,6 +76,30 @@ class AppDatabase {
       );
       try { await db.execute('ALTER TABLE products ADD COLUMN isTaxIncluded INTEGER DEFAULT 0'); } catch (_) {}
       try { await db.execute('ALTER TABLE products ADD COLUMN imageBase64 TEXT'); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN discountType TEXT DEFAULT 'none'"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN discountValue REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN maxDiscountPercent REAL DEFAULT 100.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN tierPricingJson TEXT DEFAULT ''"); } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS combo_offers (
+            id TEXT PRIMARY KEY,
+            shopId TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            offerType TEXT NOT NULL,
+            comboPrice REAL DEFAULT 0.0,
+            discountPercentage REAL DEFAULT 0.0,
+            itemsJson TEXT NOT NULL,
+            startDate TEXT,
+            endDate TEXT,
+            isActive INTEGER DEFAULT 1,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+      } catch (_) {}
       return db;
     }
   }
@@ -98,6 +146,10 @@ class AppDatabase {
         gstRate REAL DEFAULT 0.0,
         isTaxIncluded INTEGER DEFAULT 0,
         imageBase64 TEXT,
+        discountType TEXT DEFAULT 'none',
+        discountValue REAL DEFAULT 0.0,
+        maxDiscountPercent REAL DEFAULT 100.0,
+        tierPricingJson TEXT DEFAULT '',
         stockQuantity REAL DEFAULT 0.0,
         minStockAlert REAL DEFAULT 5.0,
         unit TEXT DEFAULT 'Pcs',
@@ -201,6 +253,27 @@ class AppDatabase {
     ''');
 
     await db.execute('CREATE INDEX idx_cash_sessions_shop_date ON cash_register_sessions(shopId, date)');
+
+    // 7. Combo Offers Table
+    await db.execute('''
+      CREATE TABLE combo_offers (
+        id TEXT PRIMARY KEY,
+        shopId TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        offerType TEXT NOT NULL,
+        comboPrice REAL DEFAULT 0.0,
+        discountPercentage REAL DEFAULT 0.0,
+        itemsJson TEXT NOT NULL,
+        startDate TEXT,
+        endDate TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        isSynced INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_combo_offers_shop ON combo_offers(shopId)');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {

@@ -1,3 +1,29 @@
+import 'dart:convert';
+
+class QuantityTier {
+  final double minQty;
+  final double? maxQty; // null means unbounded (e.g. 10+)
+  final double unitPrice;
+
+  QuantityTier({
+    required this.minQty,
+    this.maxQty,
+    required this.unitPrice,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'minQty': minQty,
+    'maxQty': maxQty,
+    'unitPrice': unitPrice,
+  };
+
+  factory QuantityTier.fromMap(Map<String, dynamic> map) => QuantityTier(
+    minQty: (map['minQty'] as num?)?.toDouble() ?? 1.0,
+    maxQty: (map['maxQty'] as num?)?.toDouble(),
+    unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0.0,
+  );
+}
+
 class Product {
   final String id;
   final String shopId;
@@ -17,6 +43,10 @@ class Product {
   final String hsnCode;
   final String supplierName;
   final DateTime? expiryDate;
+  final String discountType; // 'none', 'percentage', 'fixed'
+  final double discountValue; // e.g. 10% or 50 Rs
+  final double maxDiscountPercent; // max allowable discount limit (default 100%)
+  final String tierPricingJson; // JSON list of QuantityTier
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
@@ -41,6 +71,10 @@ class Product {
     this.hsnCode = '',
     this.supplierName = '',
     this.expiryDate,
+    this.discountType = 'none',
+    this.discountValue = 0.0,
+    this.maxDiscountPercent = 100.0,
+    this.tierPricingJson = '',
     DateTime? createdAt,
     DateTime? updatedAt,
     this.isSynced = false,
@@ -50,6 +84,41 @@ class Product {
         updatedAt = updatedAt ?? DateTime.now();
 
   bool get isLowStock => stockQuantity <= minStockAlert;
+
+  List<QuantityTier> get quantityTiers {
+    if (tierPricingJson.trim().isEmpty) return [];
+    try {
+      final decoded = jsonDecode(tierPricingJson);
+      if (decoded is List) {
+        final list = decoded.map((m) => QuantityTier.fromMap(m as Map<String, dynamic>)).toList();
+        list.sort((a, b) => a.minQty.compareTo(b.minQty));
+        return list;
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  double getUnitPriceForQty(double qty) {
+    final tiers = quantityTiers;
+    if (tiers.isEmpty) return sellingPrice;
+
+    QuantityTier? matchedTier;
+    for (final tier in tiers) {
+      if (qty >= tier.minQty && (tier.maxQty == null || qty <= tier.maxQty!)) {
+        matchedTier = tier;
+      }
+    }
+    return matchedTier?.unitPrice ?? sellingPrice;
+  }
+
+  double calculateDefaultDiscount(double baseUnitPrice, double qty) {
+    if (discountType == 'percentage' && discountValue > 0) {
+      return (baseUnitPrice * qty) * (discountValue / 100.0);
+    } else if (discountType == 'fixed' && discountValue > 0) {
+      return discountValue * qty;
+    }
+    return 0.0;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -71,6 +140,10 @@ class Product {
       'hsnCode': hsnCode,
       'supplierName': supplierName,
       'expiryDate': expiryDate?.toIso8601String(),
+      'discountType': discountType,
+      'discountValue': discountValue,
+      'maxDiscountPercent': maxDiscountPercent,
+      'tierPricingJson': tierPricingJson,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isSynced': isSynced ? 1 : 0,
@@ -98,6 +171,10 @@ class Product {
       hsnCode: map['hsnCode'] ?? '',
       supplierName: map['supplierName'] ?? '',
       expiryDate: map['expiryDate'] != null ? DateTime.tryParse(map['expiryDate']) : null,
+      discountType: map['discountType'] ?? 'none',
+      discountValue: (map['discountValue'] as num?)?.toDouble() ?? 0.0,
+      maxDiscountPercent: (map['maxDiscountPercent'] as num?)?.toDouble() ?? 100.0,
+      tierPricingJson: map['tierPricingJson'] ?? '',
       createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : DateTime.now(),
       isSynced: (map['isSynced'] == 1 || map['isSynced'] == true),
@@ -124,6 +201,10 @@ class Product {
     String? hsnCode,
     String? supplierName,
     DateTime? expiryDate,
+    String? discountType,
+    double? discountValue,
+    double? maxDiscountPercent,
+    String? tierPricingJson,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
@@ -148,6 +229,10 @@ class Product {
       hsnCode: hsnCode ?? this.hsnCode,
       supplierName: supplierName ?? this.supplierName,
       expiryDate: expiryDate ?? this.expiryDate,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      maxDiscountPercent: maxDiscountPercent ?? this.maxDiscountPercent,
+      tierPricingJson: tierPricingJson ?? this.tierPricingJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,

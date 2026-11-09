@@ -34,9 +34,13 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   late TextEditingController _alertController;
   late TextEditingController _hsnController;
   late TextEditingController _supplierController;
+  late TextEditingController _discountValueController;
+  late TextEditingController _maxDiscountPercentController;
 
   double _gstRate = 0.0;
   bool _isTaxIncluded = false;
+  String _discountType = 'none'; // 'none', 'percentage', 'fixed'
+  List<QuantityTier> _quantityTiers = [];
   String _imageBase64 = '';
   bool _isPickingImage = false;
   String _unit = 'Pcs';
@@ -61,6 +65,14 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _alertController = TextEditingController(text: p?.minStockAlert.toString() ?? '5');
     _hsnController = TextEditingController(text: p?.hsnCode ?? '');
     _supplierController = TextEditingController(text: p?.supplierName ?? '');
+    _discountType = p?.discountType ?? 'none';
+    _discountValueController = TextEditingController(
+      text: (p?.discountValue ?? 0) > 0 ? p!.discountValue.toString() : '',
+    );
+    _maxDiscountPercentController = TextEditingController(
+      text: (p?.maxDiscountPercent ?? 100) < 100 ? p!.maxDiscountPercent.toString() : '',
+    );
+    _quantityTiers = List.from(p?.quantityTiers ?? []);
 
     _gstRate = p?.gstRate ?? 0.0;
     _isTaxIncluded = p?.isTaxIncluded ?? false;
@@ -82,6 +94,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _alertController.dispose();
     _hsnController.dispose();
     _supplierController.dispose();
+    _discountValueController.dispose();
+    _maxDiscountPercentController.dispose();
     super.dispose();
   }
 
@@ -140,6 +154,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     final mrp = double.tryParse(_mrpController.text.trim()) ?? sellingPrice;
     final stock = double.tryParse(_stockController.text.trim()) ?? 0.0;
     final alert = double.tryParse(_alertController.text.trim()) ?? 5.0;
+    final discountVal = double.tryParse(_discountValueController.text.trim()) ?? 0.0;
+    final maxDiscPercent = double.tryParse(_maxDiscountPercentController.text.trim()) ?? 100.0;
+    final tiersJson = _quantityTiers.isNotEmpty
+        ? jsonEncode(_quantityTiers.map((t) => t.toMap()).toList())
+        : '';
 
     final product = Product(
       id: widget.product?.id ?? const Uuid().v4(),
@@ -160,6 +179,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       hsnCode: _hsnController.text.trim(),
       supplierName: _supplierController.text.trim(),
       expiryDate: _expiryDate,
+      discountType: _discountType,
+      discountValue: discountVal,
+      maxDiscountPercent: maxDiscPercent,
+      tierPricingJson: tiersJson,
       createdAt: widget.product?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -511,6 +534,177 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Promotional Discount & Bulk Pricing
+                  _buildSectionTitle('Discount & Bulk Pricing Configuration'),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.local_offer_outlined, color: AppTheme.primary, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Product Default Discount',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Configure a default discount applied automatically in POS cart, and restrict the cashier max allowable discount.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: DropdownButtonFormField<String>(
+                                value: _discountType,
+                                decoration: const InputDecoration(
+                                  labelText: 'Discount Type',
+                                  prefixIcon: Icon(Icons.percent),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'none', child: Text('No Default Discount')),
+                                  DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
+                                  DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _discountType = val);
+                                },
+                              ),
+                            ),
+                            if (_discountType != 'none') ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _discountValueController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: InputDecoration(
+                                    labelText: _discountType == 'percentage' ? 'Discount (%)' : 'Discount (Rs.)',
+                                    prefixIcon: Icon(_discountType == 'percentage' ? Icons.percent : Icons.currency_rupee),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _maxDiscountPercentController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Maximum Allowed Discount Limit (%)',
+                            hintText: 'e.g. 20 (Prevents unauthorized cashier discounts)',
+                            prefixIcon: Icon(Icons.shield_outlined),
+                          ),
+                        ),
+                        const Divider(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(Icons.layers_outlined, color: Colors.indigo, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Quantity-Based Pricing (Bulk Pricing)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: _showAddTierDialog,
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Add Tier'),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Offer wholesale/volume prices automatically when customer buys certain quantities (e.g. 5-9 units at Rs. 90, 10+ at Rs. 80).',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_quantityTiers.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'No bulk pricing tiers configured yet. Standard selling price applies to all quantities.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        else
+                          Column(
+                            children: _quantityTiers.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final tier = entry.value;
+                              final rangeText = tier.maxQty != null
+                                  ? '${tier.minQty.toInt()} - ${tier.maxQty!.toInt()} $_unit'
+                                  : '${tier.minQty.toInt()}+ $_unit';
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.indigo.shade50.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.indigo.shade100),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: const [
+                                        Icon(Icons.check_circle_outline, size: 16, color: Colors.indigo),
+                                        SizedBox(width: 8),
+                                      ],
+                                    ),
+                                    Text(
+                                      rangeText,
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      'Rs. ${tier.unitPrice.toStringAsFixed(2)} / $_unit',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () {
+                                        setState(() {
+                                          _quantityTiers.removeAt(idx);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
                   // Stock & Inventory
                   _buildSectionTitle('Stock & Inventory Tracking'),
                   const SizedBox(height: 12),
@@ -596,6 +790,109 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAddTierDialog() {
+    final minQtyCtrl = TextEditingController();
+    final maxQtyCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final tierFormKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Bulk Pricing Tier'),
+        content: Form(
+          key: tierFormKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Define a special unit price when purchase quantity falls within this range.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: minQtyCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Min Qty *',
+                        hintText: 'e.g. 5',
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final n = double.tryParse(v);
+                        if (n == null || n <= 0) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: maxQtyCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Max Qty',
+                        hintText: 'e.g. 9 (or leave blank for 5+)',
+                      ),
+                      validator: (v) {
+                        if (v != null && v.trim().isNotEmpty) {
+                          final n = double.tryParse(v);
+                          final minN = double.tryParse(minQtyCtrl.text);
+                          if (n == null) return 'Invalid';
+                          if (minN != null && n < minN) return 'Must be >= Min';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Special Unit Price (Rs.) *',
+                  prefixIcon: Icon(Icons.currency_rupee),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Enter unit price';
+                  final n = double.tryParse(v);
+                  if (n == null || n < 0) return 'Invalid price';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (tierFormKey.currentState?.validate() == true) {
+                final minQ = double.parse(minQtyCtrl.text.trim());
+                final maxQ = maxQtyCtrl.text.trim().isNotEmpty ? double.parse(maxQtyCtrl.text.trim()) : null;
+                final price = double.parse(priceCtrl.text.trim());
+                setState(() {
+                  _quantityTiers.add(QuantityTier(minQty: minQ, maxQty: maxQ, unitPrice: price));
+                  _quantityTiers.sort((a, b) => a.minQty.compareTo(b.minQty));
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Add Tier'),
+          ),
+        ],
       ),
     );
   }

@@ -15,6 +15,7 @@ import 'invoice_preview_screen.dart';
 import 'upi_payment_dialog.dart';
 import 'cash_register_dialog.dart';
 import '../../providers/cash_register_provider.dart';
+import '../../providers/combo_offer_provider.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -42,6 +43,7 @@ class _PosScreenState extends State<PosScreen> {
       if (shop != null) {
         Provider.of<ProductProvider>(context, listen: false).loadProducts(shop.id);
         Provider.of<CustomerProvider>(context, listen: false).loadCustomers(shop.id);
+        Provider.of<ComboOfferProvider>(context, listen: false).loadComboOffers(shop.id);
 
         final cashProvider = Provider.of<CashRegisterProvider>(context, listen: false);
         await cashProvider.loadTodaySession(shop.id);
@@ -74,7 +76,8 @@ class _PosScreenState extends State<PosScreen> {
 
     final product = productProvider.findByBarcode(barcode.trim());
     if (product != null) {
-      cartProvider.addToCart(product);
+      final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+      cartProvider.addToCart(product, comboOffers: activeOffers);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -197,6 +200,282 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  void _showItemDiscountDialog(CartItem item) {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    String selectedType = item.isManualDiscount
+        ? item.discountType
+        : (item.discountType != 'none' ? item.discountType : 'percentage');
+    final valCtrl = TextEditingController(
+      text: item.discountValue > 0 ? item.discountValue.toString() : '',
+    );
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: Text('Apply Discount: ${item.product.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Price: ${currencyFormat.format(item.unitPrice)} | Qty: ${item.quantity.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Maximum allowed discount: ${item.product.maxDiscountPercent.toStringAsFixed(0)}%',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                ),
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                decoration: const InputDecoration(labelText: 'Discount Type'),
+                items: const [
+                  DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
+                  DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount per unit (Rs.)')),
+                  DropdownMenuItem(value: 'none', child: Text('Reset to Default / None')),
+                ],
+                onChanged: (v) {
+                  if (v != null) {
+                    setDlgState(() {
+                      selectedType = v;
+                      errorMessage = null;
+                    });
+                  }
+                },
+              ),
+              if (selectedType != 'none') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: valCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: selectedType == 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (Rs.)',
+                    prefixIcon: Icon(selectedType == 'percentage' ? Icons.percent : Icons.currency_rupee),
+                    errorText: errorMessage,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final comboOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+                if (selectedType == 'none') {
+                  cart.setItemDiscount(item.product.id, discountType: 'none', discountValue: 0.0);
+                  cart.evaluateCombos(comboOffers);
+                  Navigator.pop(ctx);
+                  return;
+                }
+
+                final val = double.tryParse(valCtrl.text.trim()) ?? 0.0;
+                final err = cart.setItemDiscount(
+                  item.product.id,
+                  discountType: selectedType,
+                  discountValue: val,
+                );
+                if (err != null) {
+                  setDlgState(() => errorMessage = err);
+                } else {
+                  cart.evaluateCombos(comboOffers);
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAvailableCombosModal() {
+    final comboProvider = Provider.of<ComboOfferProvider>(context, listen: false);
+    final activeOffers = comboProvider.activeOffers;
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final products = Provider.of<ProductProvider>(context, listen: false).products;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.local_offer, color: AppTheme.primary),
+                    SizedBox(width: 8),
+                    Text(
+                      'Available Combo Offers',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const Divider(),
+            if (activeOffers.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'No active combo offers configured.\nCreate combo offers from the Dashboard.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.separated(
+                  itemCount: activeOffers.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (ctx, index) {
+                    final offer = activeOffers[index];
+                    final isApplied = cart.activeCombos.any((c) => c.id == offer.id);
+
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isApplied ? Colors.green.shade50 : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isApplied ? Colors.green.shade400 : Colors.grey.shade300,
+                          width: isApplied ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  offer.title,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ),
+                              if (isApplied)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'APPLIED IN CART',
+                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (offer.description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(offer.description, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: offer.items.map((i) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Text(
+                                  '${i.quantity.toInt()}x ${i.productName}',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                offer.offerType == 'fixed_price'
+                                    ? 'Special Price: Rs. ${offer.comboPrice.toStringAsFixed(2)}'
+                                    : (offer.offerType == 'percentage_discount'
+                                        ? '${offer.discountPercentage.toStringAsFixed(0)}% OFF Bundle'
+                                        : 'Buy X Get Y Free'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.add_shopping_cart, size: 16),
+                                label: const Text('Add Combo to Cart'),
+                                style: ElevatedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  backgroundColor: isApplied ? Colors.teal : AppTheme.primary,
+                                ),
+                                onPressed: () {
+                                  for (final ci in offer.items) {
+                                    final p = products.firstWhere(
+                                      (prod) => prod.id == ci.productId,
+                                      orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                    );
+                                    if (p.id.isNotEmpty) {
+                                      cart.addToCart(p, quantity: ci.quantity);
+                                    }
+                                  }
+                                  cart.evaluateCombos(activeOffers);
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Added "${offer.title}" to cart!'),
+                                      backgroundColor: AppTheme.success,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddCustomerDialog() {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -249,6 +528,22 @@ class _PosScreenState extends State<PosScreen> {
       appBar: AppBar(
         title: const Text('POS Billing'),
         actions: [
+          Consumer<ComboOfferProvider>(
+            builder: (_, comboProv, __) {
+              final count = comboProv.activeOffers.length;
+              return TextButton.icon(
+                icon: Badge.count(
+                  count: count,
+                  isLabelVisible: count > 0,
+                  backgroundColor: Colors.amber,
+                  textColor: Colors.black87,
+                  child: const Icon(Icons.local_offer_outlined, color: Colors.white),
+                ),
+                label: const Text('OFFERS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onPressed: _showAvailableCombosModal,
+              );
+            },
+          ),
           Consumer<CartProvider>(
             builder: (_, cart, __) => TextButton.icon(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
@@ -446,7 +741,8 @@ class _PosScreenState extends State<PosScreen> {
               inCartQty: inCartQty,
               currencyFormat: currencyFormat,
               onAdd: () {
-                cartProvider.addToCart(p);
+                final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+                cartProvider.addToCart(p, comboOffers: activeOffers);
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -550,59 +846,128 @@ class _PosScreenState extends State<PosScreen> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (ctx, index) {
                       final item = cart.items[index];
+                      final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              flex: 4,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.product.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 4,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.product.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      Text(
+                                        '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
+                                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Discount button
+                                IconButton(
+                                  icon: Icon(
+                                    item.discountAmount > 0 ? Icons.local_offer : Icons.local_offer_outlined,
+                                    size: 18,
+                                    color: item.discountAmount > 0 ? Colors.orange : AppTheme.textSecondary,
+                                  ),
+                                  tooltip: 'Item Discount',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _showItemDiscountDialog(item),
+                                ),
+                                const SizedBox(width: 6),
+                                // Qty buttons
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                      onPressed: () => cart.updateQuantity(item.product.id, item.quantity - 1, comboOffers: activeOffers),
+                                    ),
+                                    Text(
+                                      '${item.quantity.toStringAsFixed(0)}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                                      onPressed: () => cart.updateQuantity(item.product.id, item.quantity + 1, comboOffers: activeOffers),
+                                    ),
+                                  ],
+                                ),
+                                // Item Total
+                                SizedBox(
+                                  width: 80,
+                                  child: Text(
+                                    currencyFormat.format(item.netTotal),
+                                    textAlign: TextAlign.right,
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
-                                  Text(
-                                    '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
-                                    style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Qty buttons
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, size: 20),
-                                  onPressed: () => cart.updateQuantity(item.product.id, item.quantity - 1),
-                                ),
-                                Text(
-                                  '${item.quantity.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.add_circle_outline, size: 20),
-                                  onPressed: () => cart.updateQuantity(item.product.id, item.quantity + 1),
+                                  icon: const Icon(Icons.close, size: 18, color: AppTheme.danger),
+                                  onPressed: () => cart.removeFromCart(item.product.id, comboOffers: activeOffers),
                                 ),
                               ],
                             ),
-                            // Item Total
-                            SizedBox(
-                              width: 80,
-                              child: Text(
-                                currencyFormat.format(item.netTotal),
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            // Promotional badges row
+                            if (item.appliedOfferTitle != null || item.discountAmount > 0 || item.isTierPricingApplied)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2, left: 2),
+                                child: Wrap(
+                                  spacing: 4,
+                                  runSpacing: 2,
+                                  children: [
+                                    if (item.appliedOfferTitle != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.green.shade300),
+                                        ),
+                                        child: Text(
+                                          'Combo: ${item.appliedOfferTitle} (-${currencyFormat.format(item.discountAmount)})',
+                                          style: TextStyle(fontSize: 10, color: Colors.green.shade800, fontWeight: FontWeight.bold),
+                                        ),
+                                      )
+                                    else if (item.discountAmount > 0)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.orange.shade300),
+                                        ),
+                                        child: Text(
+                                          'Discount: -${currencyFormat.format(item.discountAmount)} (${item.discountType == "percentage" ? "${item.discountValue.toStringAsFixed(0)}%" : "Fixed"})',
+                                          style: TextStyle(fontSize: 10, color: Colors.orange.shade900, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    if (item.isTierPricingApplied)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.indigo.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.indigo.shade300),
+                                        ),
+                                        child: Text(
+                                          'Bulk Tier Price Applied',
+                                          style: TextStyle(fontSize: 10, color: Colors.indigo.shade800, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 18, color: AppTheme.danger),
-                              onPressed: () => cart.removeFromCart(item.product.id),
-                            ),
                           ],
                         ),
                       );
@@ -620,6 +985,38 @@ class _PosScreenState extends State<PosScreen> {
             child: Column(
               children: [
                 _buildSummaryLine('Subtotal', currencyFormat.format(cart.subtotal)),
+                if (cart.totalDiscount > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Discount / Offer Savings',
+                            style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                        Text('- ${currencyFormat.format(cart.totalDiscount)}',
+                            style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                if (cart.activeCombos.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Active Combo:',
+                            style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                        Flexible(
+                          child: Text(
+                            cart.activeCombos.map((c) => c.title).join(', '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (cart.totalTax > 0)
                   _buildSummaryLine('VAT Amount', currencyFormat.format(cart.totalTax)),
                 if (cart.roundOff != 0)
@@ -895,13 +1292,38 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleT
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        widget.currencyFormat.format(p.sellingPrice),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.currencyFormat.format(p.sellingPrice),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                          if (p.discountType != 'none')
+                            Text(
+                              p.discountType == 'percentage'
+                                  ? '${p.discountValue.toStringAsFixed(0)}% OFF'
+                                  : '-Rs. ${p.discountValue.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            )
+                          else if (p.quantityTiers.isNotEmpty)
+                            const Text(
+                              'Bulk Tier',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                        ],
                       ),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
