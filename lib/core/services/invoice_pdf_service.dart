@@ -124,14 +124,25 @@ class InvoicePdfService {
                     6: pw.Alignment.centerRight,
                     7: pw.Alignment.centerRight,
                   },
-                  headers: ['#', 'Item Description', 'Qty', 'Rate', 'Disc', 'VAT %', 'VAT Amt', 'Total (Rs.)'],
+                  headers: ['#', 'Item Description', 'Qty / Wt', 'Rate', 'Disc', 'VAT %', 'VAT Amt', 'Total (Rs.)'],
                   data: List.generate(invoice.items.length, (index) {
                     final item = invoice.items[index];
+                    final qtyStr = item.isWeightBased
+                        ? (item.weightInGrams != null && item.weightInGrams! < 1000 && item.unit.toLowerCase() != 'kg'
+                            ? '${item.weightInGrams!.toStringAsFixed(0)} g'
+                            : '${item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg')
+                        : '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.unit}';
+                    final rateStr = item.isWeightBased
+                        ? (item.pricePerKg != null && item.pricePerKg! > 0
+                            ? 'Rs. ${item.pricePerKg!.toStringAsFixed(0)}/kg'
+                            : item.unitPrice.toStringAsFixed(2))
+                        : item.unitPrice.toStringAsFixed(2);
+
                     return [
                       '${index + 1}',
                       item.productName,
-                      '${item.quantity} ${item.unit}',
-                      item.unitPrice.toStringAsFixed(2),
+                      qtyStr,
+                      rateStr,
                       item.discountAmount > 0 ? item.discountAmount.toStringAsFixed(2) : '-',
                       '${item.gstRate.toStringAsFixed(0)}%',
                       item.taxAmount.toStringAsFixed(2),
@@ -293,6 +304,17 @@ class InvoicePdfService {
 
               // Items List
               ...invoice.items.map((item) {
+                final qtyStr = item.isWeightBased
+                    ? (item.weightInGrams != null && item.weightInGrams! < 1000 && item.unit.toLowerCase() != 'kg'
+                        ? '${item.weightInGrams!.toStringAsFixed(0)} g'
+                        : '${item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg')
+                    : '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.unit}';
+                final rateStr = item.isWeightBased
+                    ? (item.pricePerKg != null && item.pricePerKg! > 0
+                        ? '${item.pricePerKg!.toStringAsFixed(0)}/kg'
+                        : item.unitPrice.toStringAsFixed(2))
+                    : item.unitPrice.toStringAsFixed(2);
+
                 return pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
                   child: pw.Row(
@@ -309,14 +331,14 @@ class InvoicePdfService {
                       pw.Expanded(
                         flex: 2,
                         child: pw.Text(
-                            '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.unit}',
+                            qtyStr,
                             textAlign: pw.TextAlign.center,
                             style: const pw.TextStyle(fontSize: 6.5)),
                       ),
                       pw.Expanded(
                         flex: 3,
                         child: pw.Text(
-                          item.unitPrice.toStringAsFixed(2),
+                          rateStr,
                           textAlign: pw.TextAlign.right,
                           style: const pw.TextStyle(fontSize: 6.5),
                         ),

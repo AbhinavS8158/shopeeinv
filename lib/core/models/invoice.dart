@@ -10,6 +10,10 @@ class InvoiceItem {
   final double gstRate; // e.g. 18
   final double taxAmount;
   final double totalAmount;
+  final bool isWeightBased;
+  final double? weightInGrams;
+  final double? pricePerKg;
+  final String productSellingType; // 'weight' or 'unit'
 
   InvoiceItem({
     required this.productId,
@@ -21,6 +25,10 @@ class InvoiceItem {
     this.gstRate = 0.0,
     required this.taxAmount,
     required this.totalAmount,
+    this.isWeightBased = false,
+    this.weightInGrams,
+    this.pricePerKg,
+    this.productSellingType = 'unit',
   });
 
   Map<String, dynamic> toMap() {
@@ -34,6 +42,10 @@ class InvoiceItem {
       'gstRate': gstRate,
       'taxAmount': taxAmount,
       'totalAmount': totalAmount,
+      'isWeightBased': isWeightBased ? 1 : 0,
+      'weightInGrams': weightInGrams,
+      'pricePerKg': pricePerKg,
+      'productSellingType': productSellingType,
     };
   }
 
@@ -48,6 +60,11 @@ class InvoiceItem {
       gstRate: (map['gstRate'] as num?)?.toDouble() ?? 0.0,
       taxAmount: (map['taxAmount'] as num?)?.toDouble() ?? 0.0,
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      isWeightBased: (map['isWeightBased'] == 1 || map['isWeightBased'] == true),
+      weightInGrams: (map['weightInGrams'] as num?)?.toDouble(),
+      pricePerKg: (map['pricePerKg'] as num?)?.toDouble(),
+      productSellingType: map['productSellingType'] ??
+          ((map['isWeightBased'] == 1 || map['isWeightBased'] == true) ? 'weight' : 'unit'),
     );
   }
 }

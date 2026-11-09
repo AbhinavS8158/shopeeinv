@@ -47,6 +47,10 @@ class Product {
   final double discountValue; // e.g. 10% or 50 Rs
   final double maxDiscountPercent; // max allowable discount limit (default 100%)
   final String tierPricingJson; // JSON list of QuantityTier
+  final bool isSoldByWeight; // true if sold based on weight
+  final double pricePerKg; // Price per Kilogram (Rs.)
+  final double? minSellingWeight; // Minimum selling weight (optional)
+  final String weightUnit; // 'kg' or 'g'
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
@@ -75,6 +79,10 @@ class Product {
     this.discountValue = 0.0,
     this.maxDiscountPercent = 100.0,
     this.tierPricingJson = '',
+    this.isSoldByWeight = false,
+    this.pricePerKg = 0.0,
+    this.minSellingWeight,
+    this.weightUnit = 'kg',
     DateTime? createdAt,
     DateTime? updatedAt,
     this.isSynced = false,
@@ -121,6 +129,7 @@ class Product {
   }
 
   bool get isWeightBased {
+    if (isSoldByWeight) return true;
     final u = unit.toLowerCase().trim();
     if (u == 'kg' || u == 'gm' || u == 'g' || u == 'gram' || u == 'grams') return true;
     final cat = category.toLowerCase().trim();
@@ -154,6 +163,8 @@ class Product {
     return false;
   }
 
+  double get effectivePricePerKg => pricePerKg > 0 ? pricePerKg : sellingPrice;
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -178,6 +189,10 @@ class Product {
       'discountValue': discountValue,
       'maxDiscountPercent': maxDiscountPercent,
       'tierPricingJson': tierPricingJson,
+      'isSoldByWeight': isSoldByWeight ? 1 : 0,
+      'pricePerKg': pricePerKg,
+      'minSellingWeight': minSellingWeight,
+      'weightUnit': weightUnit,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isSynced': isSynced ? 1 : 0,
@@ -209,6 +224,10 @@ class Product {
       discountValue: (map['discountValue'] as num?)?.toDouble() ?? 0.0,
       maxDiscountPercent: (map['maxDiscountPercent'] as num?)?.toDouble() ?? 100.0,
       tierPricingJson: map['tierPricingJson'] ?? '',
+      isSoldByWeight: (map['isSoldByWeight'] == 1 || map['isSoldByWeight'] == true),
+      pricePerKg: (map['pricePerKg'] as num?)?.toDouble() ?? 0.0,
+      minSellingWeight: (map['minSellingWeight'] as num?)?.toDouble(),
+      weightUnit: map['weightUnit'] ?? 'kg',
       createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : DateTime.now(),
       isSynced: (map['isSynced'] == 1 || map['isSynced'] == true),
@@ -239,6 +258,10 @@ class Product {
     double? discountValue,
     double? maxDiscountPercent,
     String? tierPricingJson,
+    bool? isSoldByWeight,
+    double? pricePerKg,
+    double? minSellingWeight,
+    String? weightUnit,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
@@ -267,6 +290,10 @@ class Product {
       discountValue: discountValue ?? this.discountValue,
       maxDiscountPercent: maxDiscountPercent ?? this.maxDiscountPercent,
       tierPricingJson: tierPricingJson ?? this.tierPricingJson,
+      isSoldByWeight: isSoldByWeight ?? this.isSoldByWeight,
+      pricePerKg: pricePerKg ?? this.pricePerKg,
+      minSellingWeight: minSellingWeight ?? this.minSellingWeight,
+      weightUnit: weightUnit ?? this.weightUnit,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,

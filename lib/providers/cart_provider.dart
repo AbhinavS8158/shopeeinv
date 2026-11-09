@@ -13,6 +13,10 @@ class CartItem {
   bool isManualDiscount;
   bool isManualPrice;
   String? appliedOfferTitle;
+  bool isWeightItem;
+  double? weightGrams;
+  double? pricePerKg;
+  String? weightDisplayUnit;
 
   CartItem({
     required this.product,
@@ -24,7 +28,15 @@ class CartItem {
     this.isManualDiscount = false,
     this.isManualPrice = false,
     this.appliedOfferTitle,
-  }) : customPrice = customPrice ?? product.getUnitPriceForQty(quantity) {
+    bool? isWeightItem,
+    this.weightGrams,
+    this.pricePerKg,
+    this.weightDisplayUnit,
+  })  : isWeightItem = isWeightItem ?? product.isWeightBased,
+        customPrice = customPrice ??
+            ((isWeightItem ?? product.isWeightBased)
+                ? (pricePerKg ?? product.effectivePricePerKg)
+                : product.getUnitPriceForQty(quantity)) {
     if (!isManualDiscount) {
       applyDefaultDiscount();
     }
@@ -32,7 +44,11 @@ class CartItem {
 
   void recalculatePricing() {
     if (!isManualPrice) {
-      customPrice = product.getUnitPriceForQty(quantity);
+      if (isWeightItem || product.isWeightBased) {
+        customPrice = pricePerKg ?? product.effectivePricePerKg;
+      } else {
+        customPrice = product.getUnitPriceForQty(quantity);
+      }
     }
     if (isManualDiscount) {
       if (discountType == 'percentage') {
@@ -51,7 +67,7 @@ class CartItem {
     discountAmount = product.calculateDefaultDiscount(customPrice, quantity);
   }
 
-  bool get isTierPricingApplied => !isManualPrice && customPrice != product.sellingPrice;
+  bool get isTierPricingApplied => !isManualPrice && !product.isWeightBased && customPrice != product.sellingPrice;
 
   bool get isTaxIncluded => product.isTaxIncluded;
 
@@ -98,16 +114,22 @@ class CartItem {
   }
 
   InvoiceItem toInvoiceItem() {
+    final isW = isWeightItem || product.isWeightBased;
+    final effPerKg = pricePerKg ?? (product.pricePerKg > 0 ? product.pricePerKg : product.sellingPrice);
     return InvoiceItem(
       productId: product.id,
       productName: product.name,
       quantity: quantity,
-      unit: product.unit,
+      unit: isW ? (weightDisplayUnit ?? product.unit) : product.unit,
       unitPrice: unitPrice,
       discountAmount: discountAmount,
       gstRate: product.gstRate,
       taxAmount: taxAmount,
       totalAmount: netTotal,
+      isWeightBased: isW,
+      weightInGrams: weightGrams ?? (isW ? quantity * 1000.0 : null),
+      pricePerKg: isW ? effPerKg : null,
+      productSellingType: isW ? 'weight' : 'unit',
     );
   }
 }
@@ -131,23 +153,52 @@ class CartProvider extends ChangeNotifier {
   }
 
   /// Returns null on success, or an error message if out of stock
-  String? addToCart(Product product, {double quantity = 1.0, List<ComboOffer>? comboOffers, bool enforceStock = true}) {
+  String? addToCart(
+    Product product, {
+    double quantity = 1.0,
+    List<ComboOffer>? comboOffers,
+    bool enforceStock = true,
+    bool? isWeightItem,
+    double? weightGrams,
+    double? pricePerKg,
+    String? weightDisplayUnit,
+  }) {
     final index = _items.indexWhere((i) => i.product.id == product.id);
     final currentQty = index >= 0 ? _items[index].quantity : 0.0;
     final targetQty = currentQty + quantity;
+    final isW = isWeightItem ?? product.isWeightBased;
+
+    final stockStr = (product.isWeightBased || isW)
+        ? (product.stockQuantity % 1 == 0
+            ? '${product.stockQuantity.toInt()}'
+            : product.stockQuantity.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), ''))
+        : '${product.stockQuantity.toInt()}';
 
     if (enforceStock && product.stockQuantity <= 0) {
       return 'Out of Stock! "${product.name}" has 0 stock available.';
     }
     if (enforceStock && targetQty > product.stockQuantity) {
-      return 'Insufficient Stock! Only ${product.stockQuantity.toInt()} ${product.unit} available.';
+      return 'Insufficient Stock! Only $stockStr ${product.unit} available.';
     }
 
     if (index >= 0) {
       _items[index].quantity = targetQty;
+      if (isW) {
+        _items[index].isWeightItem = true;
+        if (weightGrams != null) _items[index].weightGrams = (_items[index].weightGrams ?? 0.0) + weightGrams;
+        if (pricePerKg != null) _items[index].pricePerKg = pricePerKg;
+        if (weightDisplayUnit != null) _items[index].weightDisplayUnit = weightDisplayUnit;
+      }
       _items[index].recalculatePricing();
     } else {
-      _items.add(CartItem(product: product, quantity: targetQty));
+      _items.add(CartItem(
+        product: product,
+        quantity: targetQty,
+        isWeightItem: isW,
+        weightGrams: weightGrams,
+        pricePerKg: pricePerKg,
+        weightDisplayUnit: weightDisplayUnit,
+      ));
     }
     if (comboOffers != null) {
       evaluateCombos(comboOffers);
@@ -157,7 +208,14 @@ class CartProvider extends ChangeNotifier {
   }
 
   /// Returns null on success, or an error message if out of stock
-  String? updateQuantity(String productId, double quantity, {List<ComboOffer>? comboOffers, bool enforceStock = true}) {
+  String? updateQuantity(
+    String productId,
+    double quantity, {
+    List<ComboOffer>? comboOffers,
+    bool enforceStock = true,
+    double? weightGrams,
+    String? weightDisplayUnit,
+  }) {
     if (quantity <= 0) {
       removeFromCart(productId, comboOffers: comboOffers);
       return null;
@@ -165,10 +223,22 @@ class CartProvider extends ChangeNotifier {
     final index = _items.indexWhere((i) => i.product.id == productId);
     if (index >= 0) {
       final product = _items[index].product;
+      final stockStr = (product.isWeightBased || _items[index].isWeightItem)
+          ? (product.stockQuantity % 1 == 0
+              ? '${product.stockQuantity.toInt()}'
+              : product.stockQuantity.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), ''))
+          : '${product.stockQuantity.toInt()}';
+
       if (enforceStock && quantity > product.stockQuantity) {
-        return 'Insufficient Stock! Only ${product.stockQuantity.toInt()} ${product.unit} available.';
+        return 'Insufficient Stock! Only $stockStr ${product.unit} available.';
       }
       _items[index].quantity = quantity;
+      if (weightGrams != null) {
+        _items[index].weightGrams = weightGrams;
+      }
+      if (weightDisplayUnit != null) {
+        _items[index].weightDisplayUnit = weightDisplayUnit;
+      }
       _items[index].recalculatePricing();
       if (comboOffers != null) {
         evaluateCombos(comboOffers);

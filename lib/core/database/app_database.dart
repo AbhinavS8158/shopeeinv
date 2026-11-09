@@ -44,6 +44,23 @@ class AppDatabase {
       try { await db.execute("ALTER TABLE products ADD COLUMN discountValue REAL DEFAULT 0.0"); } catch (_) {}
       try { await db.execute("ALTER TABLE products ADD COLUMN maxDiscountPercent REAL DEFAULT 100.0"); } catch (_) {}
       try { await db.execute("ALTER TABLE products ADD COLUMN tierPricingJson TEXT DEFAULT ''"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN isSoldByWeight INTEGER DEFAULT 0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN pricePerKg REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN minSellingWeight REAL"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN weightUnit TEXT DEFAULT 'kg'"); } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS categories (
+            id TEXT PRIMARY KEY,
+            shopId TEXT NOT NULL,
+            name TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_categories_shop ON categories(shopId)');
+      } catch (_) {}
       try {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS combo_offers (
@@ -80,6 +97,23 @@ class AppDatabase {
       try { await db.execute("ALTER TABLE products ADD COLUMN discountValue REAL DEFAULT 0.0"); } catch (_) {}
       try { await db.execute("ALTER TABLE products ADD COLUMN maxDiscountPercent REAL DEFAULT 100.0"); } catch (_) {}
       try { await db.execute("ALTER TABLE products ADD COLUMN tierPricingJson TEXT DEFAULT ''"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN isSoldByWeight INTEGER DEFAULT 0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN pricePerKg REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN minSellingWeight REAL"); } catch (_) {}
+      try { await db.execute("ALTER TABLE products ADD COLUMN weightUnit TEXT DEFAULT 'kg'"); } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS categories (
+            id TEXT PRIMARY KEY,
+            shopId TEXT NOT NULL,
+            name TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_categories_shop ON categories(shopId)');
+      } catch (_) {}
       try {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS combo_offers (
@@ -156,6 +190,10 @@ class AppDatabase {
         hsnCode TEXT,
         supplierName TEXT,
         expiryDate TEXT,
+        isSoldByWeight INTEGER DEFAULT 0,
+        pricePerKg REAL DEFAULT 0.0,
+        minSellingWeight REAL,
+        weightUnit TEXT DEFAULT 'kg',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         isSynced INTEGER DEFAULT 0,
@@ -274,6 +312,19 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_combo_offers_shop ON combo_offers(shopId)');
+
+    // 8. Categories Table
+    await db.execute('''
+      CREATE TABLE categories (
+        id TEXT PRIMARY KEY,
+        shopId TEXT NOT NULL,
+        name TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        isSynced INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_categories_shop ON categories(shopId)');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {

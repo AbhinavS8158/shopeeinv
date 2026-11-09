@@ -224,12 +224,16 @@ class _PosScreenState extends State<PosScreen> {
     final CartItem? item = existingItem ?? (inCartIdx >= 0 ? cart.items[inCartIdx] : null);
 
     double initialWeightKg = item?.quantity ?? 1.0;
-    String mode = 'kg'; // 'kg' or 'gm'
+    String mode = (item?.weightDisplayUnit == 'g' || (item?.weightGrams != null && item!.weightGrams! < 1000))
+        ? 'gm'
+        : 'kg';
 
     final weightController = TextEditingController(
-      text: initialWeightKg % 1 == 0
-          ? initialWeightKg.toInt().toString()
-          : initialWeightKg.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), ''),
+      text: mode == 'gm'
+          ? (item?.weightGrams != null ? item!.weightGrams!.toStringAsFixed(0) : (initialWeightKg * 1000).toStringAsFixed(0))
+          : (initialWeightKg % 1 == 0
+              ? initialWeightKg.toInt().toString()
+              : initialWeightKg.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')),
     );
 
     showDialog(
@@ -237,10 +241,16 @@ class _PosScreenState extends State<PosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
           final rawVal = double.tryParse(weightController.text.trim()) ?? 0.0;
-          final finalWeightKg = mode == 'gm' ? rawVal / 1000.0 : rawVal;
-          final unitPrice = product.getUnitPriceForQty(finalWeightKg > 0 ? finalWeightKg : 1.0);
-          final estTotal = unitPrice * finalWeightKg;
+          final finalWeightKg = mode == 'gm' ? (rawVal / 1000.0) : rawVal;
+          final pricePerKg = product.effectivePricePerKg;
+          // Formula: (Entered Weight in Grams / 1000) * Price Per Kilogram
+          final estTotal = (mode == 'gm' ? (rawVal / 1000.0) : rawVal) * pricePerKg;
           final isExceedingStock = finalWeightKg > product.stockQuantity;
+
+          final minWeightKg = (product.minSellingWeight != null && product.minSellingWeight! > 0)
+              ? (product.weightUnit == 'g' ? (product.minSellingWeight! / 1000.0) : product.minSellingWeight!)
+              : 0.0;
+          final isBelowMin = rawVal > 0 && minWeightKg > 0 && finalWeightKg < minWeightKg;
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -268,8 +278,8 @@ class _PosScreenState extends State<PosScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'Price: ${currencyFormat.format(product.sellingPrice)} / ${product.unit}',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        'Price: ${currencyFormat.format(pricePerKg)} / kg',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.teal),
                       ),
                     ],
                   ),
@@ -310,7 +320,7 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Kilograms (Kg)',
+                                  'Kilograms (kg)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -342,7 +352,7 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Grams (Gm)',
+                                  'Grams (g)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -368,10 +378,10 @@ class _PosScreenState extends State<PosScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.teal),
                           decoration: InputDecoration(
-                            labelText: mode == 'kg' ? 'Weight in Kg' : 'Weight in Grams (Gm)',
-                            hintText: mode == 'kg' ? 'e.g. 1.250' : 'e.g. 500',
+                            labelText: mode == 'kg' ? 'Purchased Weight in Kilograms' : 'Purchased Weight in Grams',
+                            hintText: mode == 'kg' ? 'e.g. 1.5' : 'e.g. 110 or 250',
                             prefixIcon: const Icon(Icons.scale, color: Colors.teal),
-                            suffixText: mode == 'kg' ? 'Kg' : 'Gm',
+                            suffixText: mode == 'kg' ? 'kg' : 'g',
                             suffixStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.teal),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -394,17 +404,17 @@ class _PosScreenState extends State<PosScreen> {
                   // Quick Weight Preset Buttons
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Quick Presets:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                    child: Text('Quick Weight Presets:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _buildPresetChip('100g', () {
+                      _buildPresetChip('110g', () {
                         setDlgState(() {
                           mode = 'gm';
-                          weightController.text = '100';
+                          weightController.text = '110';
                         });
                       }),
                       _buildPresetChip('250g', () {
@@ -419,28 +429,28 @@ class _PosScreenState extends State<PosScreen> {
                           weightController.text = '500';
                         });
                       }),
-                      _buildPresetChip('1 Kg', () {
+                      _buildPresetChip('1 kg', () {
                         setDlgState(() {
                           mode = 'kg';
                           weightController.text = '1';
                         });
                       }),
-                      _buildPresetChip('2 Kg', () {
+                      _buildPresetChip('1.5 kg', () {
+                        setDlgState(() {
+                          mode = 'kg';
+                          weightController.text = '1.5';
+                        });
+                      }),
+                      _buildPresetChip('2 kg', () {
                         setDlgState(() {
                           mode = 'kg';
                           weightController.text = '2';
                         });
                       }),
-                      _buildPresetChip('5 Kg', () {
+                      _buildPresetChip('5 kg', () {
                         setDlgState(() {
                           mode = 'kg';
                           weightController.text = '5';
-                        });
-                      }),
-                      _buildPresetChip('10 Kg', () {
-                        setDlgState(() {
-                          mode = 'kg';
-                          weightController.text = '10';
                         });
                       }),
                     ],
@@ -452,18 +462,39 @@ class _PosScreenState extends State<PosScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isExceedingStock ? Colors.red.shade50 : Colors.teal.shade50.withOpacity(0.4),
+                      color: isExceedingStock
+                          ? Colors.red.shade50
+                          : (isBelowMin ? Colors.amber.shade50 : Colors.teal.shade50.withOpacity(0.4)),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isExceedingStock ? Colors.red.shade300 : Colors.teal.shade200),
+                      border: Border.all(
+                        color: isExceedingStock
+                            ? Colors.red.shade300
+                            : (isBelowMin ? Colors.amber.shade400 : Colors.teal.shade200),
+                      ),
                     ),
                     child: Column(
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            const Text('Formula:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                            Text(
+                              mode == 'gm'
+                                  ? '(${rawVal.toStringAsFixed(0)}g / 1000) × ₹${pricePerKg.toStringAsFixed(0)}'
+                                  : '${finalWeightKg.toStringAsFixed(3)}kg × ₹${pricePerKg.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
                             const Text('Calculated Weight:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                             Text(
-                              '${finalWeightKg.toStringAsFixed(3)} Kg',
+                              mode == 'gm'
+                                  ? '${rawVal.toStringAsFixed(0)} g (${finalWeightKg.toStringAsFixed(3)} kg)'
+                                  : '${finalWeightKg.toStringAsFixed(3)} kg',
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -472,13 +503,28 @@ class _PosScreenState extends State<PosScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total Amount:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Text('Calculated Amount:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                             Text(
                               currencyFormat.format(estTotal),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal),
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
                             ),
                           ],
                         ),
+                        if (isBelowMin) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Minimum selling weight is ${product.minSellingWeight} ${product.weightUnit}',
+                                  style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         if (isExceedingStock) ...[
                           const SizedBox(height: 6),
                           Row(
@@ -507,7 +553,7 @@ class _PosScreenState extends State<PosScreen> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isExceedingStock ? Colors.grey : Colors.teal,
+                  backgroundColor: (isExceedingStock || isBelowMin || finalWeightKg <= 0) ? Colors.grey : Colors.teal,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 icon: const Icon(Icons.check, size: 18, color: Colors.white),
@@ -515,16 +561,35 @@ class _PosScreenState extends State<PosScreen> {
                   item != null ? 'Update Weight' : 'Add to Bill',
                   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-                onPressed: isExceedingStock
-                    ? () => _showOutOfStockDialog(product, requestedQty: finalWeightKg)
+                onPressed: (isExceedingStock || isBelowMin || finalWeightKg <= 0)
+                    ? (isExceedingStock ? () => _showOutOfStockDialog(product, requestedQty: finalWeightKg) : null)
                     : () {
-                        if (finalWeightKg <= 0) return;
+                        final enteredGrams = mode == 'gm' ? rawVal : (rawVal * 1000.0);
+                        final displayUnit = mode == 'gm' ? 'g' : 'kg';
+
                         if (item != null) {
-                          cart.updateQuantity(product.id, finalWeightKg, comboOffers: comboOffers);
+                          cart.updateQuantity(
+                            product.id,
+                            finalWeightKg,
+                            comboOffers: comboOffers,
+                            weightGrams: enteredGrams,
+                            weightDisplayUnit: displayUnit,
+                          );
                         } else {
-                          cart.addToCart(product, quantity: finalWeightKg, comboOffers: comboOffers);
+                          cart.addToCart(
+                            product,
+                            quantity: finalWeightKg,
+                            comboOffers: comboOffers,
+                            isWeightItem: true,
+                            weightGrams: enteredGrams,
+                            pricePerKg: pricePerKg,
+                            weightDisplayUnit: displayUnit,
+                          );
                         }
                         Navigator.pop(ctx);
+                        final formattedWeight = mode == 'gm'
+                            ? '${rawVal.toStringAsFixed(0)} g'
+                            : '${finalWeightKg.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg';
                         ScaffoldMessenger.of(context).hideCurrentSnackBar();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -533,12 +598,12 @@ class _PosScreenState extends State<PosScreen> {
                                 const Icon(Icons.scale, color: Colors.white, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Added ${product.name} (${finalWeightKg.toStringAsFixed(3)} Kg)'),
+                                  child: Text('Added ${product.name} ($formattedWeight @ ₹${pricePerKg.toStringAsFixed(0)}/kg = ${currencyFormat.format(estTotal)})'),
                                 ),
                               ],
                             ),
                             backgroundColor: Colors.teal,
-                            duration: const Duration(milliseconds: 900),
+                            duration: const Duration(milliseconds: 1500),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -1683,7 +1748,11 @@ class _PosScreenState extends State<PosScreen> {
                                                   const Icon(Icons.scale, size: 10, color: Colors.teal),
                                                   const SizedBox(width: 2),
                                                   Text(
-                                                    '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.product.unit}',
+                                                    (item.product.isWeightBased || item.isWeightItem)
+                                                        ? (item.weightDisplayUnit == 'g' || (item.weightGrams != null && item.weightGrams! < 1000)
+                                                            ? '${(item.weightGrams ?? (item.quantity * 1000)).toStringAsFixed(0)} g'
+                                                            : '${item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg')
+                                                        : '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.product.unit}',
                                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
                                                   ),
                                                 ],
@@ -1693,7 +1762,9 @@ class _PosScreenState extends State<PosScreen> {
                                         ],
                                       ),
                                       Text(
-                                        '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
+                                        (item.product.isWeightBased || item.isWeightItem)
+                                            ? '₹${item.product.effectivePricePerKg.toStringAsFixed(0)}/kg (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})'
+                                            : '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
                                         style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                                       ),
                                     ],

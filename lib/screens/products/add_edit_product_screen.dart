@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/models/category.dart';
 import '../../core/models/product.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/category_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/shop_provider.dart';
 
@@ -36,7 +38,12 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   late TextEditingController _supplierController;
   late TextEditingController _discountValueController;
   late TextEditingController _maxDiscountPercentController;
+  late TextEditingController _pricePerKgController;
+  late TextEditingController _minSellingWeightController;
 
+  String _selectedCategory = 'General';
+  bool _isSoldByWeight = false;
+  String _weightUnit = 'kg'; // 'kg' or 'g'
   double _gstRate = 0.0;
   bool _isTaxIncluded = false;
   String _discountType = 'none'; // 'none', 'percentage', 'fixed'
@@ -57,9 +64,24 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _nameController = TextEditingController(text: p?.name ?? '');
     _skuController = TextEditingController(text: p?.sku ?? '');
     _barcodeController = TextEditingController(text: p?.barcode ?? '');
-    _categoryController = TextEditingController(text: p?.category ?? 'General');
+    _selectedCategory = p?.category ?? 'General';
+    _categoryController = TextEditingController(text: _selectedCategory);
+    _isSoldByWeight = p?.isSoldByWeight ?? (p != null && p.isWeightBased);
+    _weightUnit = p?.weightUnit ?? (p?.unit.toLowerCase() == 'gm' || p?.unit.toLowerCase() == 'g' ? 'g' : 'kg');
+    _pricePerKgController = TextEditingController(
+      text: (p?.pricePerKg ?? 0) > 0
+          ? p!.pricePerKg.toString()
+          : (p != null && (p.isSoldByWeight || p.isWeightBased) ? p.sellingPrice.toString() : ''),
+    );
+    _minSellingWeightController = TextEditingController(
+      text: p?.minSellingWeight != null ? p!.minSellingWeight.toString() : '',
+    );
     _purchasePriceController = TextEditingController(text: p?.purchasePrice.toString() ?? '0');
-    _sellingPriceController = TextEditingController(text: p?.sellingPrice.toString() ?? '');
+    _sellingPriceController = TextEditingController(
+      text: p != null
+          ? p.sellingPrice.toString()
+          : (_isSoldByWeight ? _pricePerKgController.text : ''),
+    );
     _mrpController = TextEditingController(text: p?.mrp.toString() ?? '');
     _stockController = TextEditingController(text: p?.stockQuantity.toString() ?? '0');
     _alertController = TextEditingController(text: p?.minStockAlert.toString() ?? '5');
@@ -77,8 +99,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _gstRate = p?.gstRate ?? 0.0;
     _isTaxIncluded = p?.isTaxIncluded ?? false;
     _imageBase64 = p?.imageBase64 ?? '';
-    _unit = p?.unit ?? 'Pcs';
+    _unit = p?.unit ?? (_isSoldByWeight ? (_weightUnit == 'g' ? 'Gm' : 'Kg') : 'Pcs');
     _expiryDate = p?.expiryDate;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
+      if (shop != null) {
+        Provider.of<CategoryProvider>(context, listen: false).loadCategories(shop.id);
+      }
+    });
   }
 
   @override
@@ -96,7 +125,213 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _supplierController.dispose();
     _discountValueController.dispose();
     _maxDiscountPercentController.dispose();
+    _pricePerKgController.dispose();
+    _minSellingWeightController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showCreateCategoryDialog() async {
+    final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
+    if (shop == null) return;
+    final ctrl = TextEditingController();
+    final catFormKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.category, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text('Create New Category'),
+            ],
+          ),
+          content: Form(
+            key: catFormKey,
+            child: TextFormField(
+              controller: ctrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Category Name *',
+                hintText: 'e.g. Vegetables, Spices, Dairy',
+                prefixIcon: Icon(Icons.label_outline),
+              ),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return 'Enter category name';
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!catFormKey.currentState!.validate()) return;
+                try {
+                  final catProv = Provider.of<CategoryProvider>(context, listen: false);
+                  final newCat = await catProv.addCategory(shop.id, ctrl.text.trim());
+                  if (newCat != null && mounted) {
+                    setState(() {
+                      _selectedCategory = newCat.name;
+                      _categoryController.text = newCat.name;
+                    });
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Category "${newCat.name}" created!'),
+                        backgroundColor: AppTheme.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      backgroundColor: AppTheme.danger,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save Category'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showManageCategoriesDialog() async {
+    final shop = Provider.of<ShopProvider>(context, listen: false).currentShop;
+    if (shop == null) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final catProv = Provider.of<CategoryProvider>(context);
+            final cats = catProv.categories;
+
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Manage Categories'),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: AppTheme.primary),
+                    tooltip: 'Add Category',
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showCreateCategoryDialog();
+                    },
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 400,
+                height: 350,
+                child: cats.isEmpty
+                    ? const Center(child: Text('No categories found.'))
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: cats.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final c = cats[i];
+                          return ListTile(
+                            dense: true,
+                            title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18, color: Colors.blueGrey),
+                                  onPressed: () async {
+                                    final editCtrl = TextEditingController(text: c.name);
+                                    final edited = await showDialog<String>(
+                                      context: context,
+                                      builder: (ectx) => AlertDialog(
+                                        title: const Text('Edit Category'),
+                                        content: TextField(
+                                          controller: editCtrl,
+                                          autofocus: true,
+                                          decoration: const InputDecoration(labelText: 'Category Name'),
+                                        ),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ectx), child: const Text('Cancel')),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ectx, editCtrl.text.trim()),
+                                            child: const Text('Save'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (edited != null && edited.isNotEmpty && edited != c.name) {
+                                      try {
+                                        await catProv.updateCategory(c.id, shop.id, edited);
+                                        if (_selectedCategory == c.name) {
+                                          setState(() => _selectedCategory = edited);
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                                              backgroundColor: AppTheme.danger,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.danger),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (dctx) => AlertDialog(
+                                        title: const Text('Delete Category?'),
+                                        content: Text('Are you sure you want to delete "${c.name}"?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('Cancel')),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+                                            onPressed: () => Navigator.pop(dctx, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      await catProv.deleteCategory(c.id, shop.id);
+                                      if (_selectedCategory == c.name) {
+                                        setState(() => _selectedCategory = 'General');
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _generateRandomBarcode() {
@@ -149,13 +384,19 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
     setState(() => _isSaving = true);
 
-    final sellingPrice = double.tryParse(_sellingPriceController.text.trim()) ?? 0.0;
+    final isSoldByWeight = _isSoldByWeight;
+    final pricePerKg = double.tryParse(_pricePerKgController.text.trim()) ?? 0.0;
+    final sellingPrice = isSoldByWeight
+        ? (pricePerKg > 0 ? pricePerKg : (double.tryParse(_sellingPriceController.text.trim()) ?? 0.0))
+        : (double.tryParse(_sellingPriceController.text.trim()) ?? 0.0);
     final purchasePrice = double.tryParse(_purchasePriceController.text.trim()) ?? 0.0;
     final mrp = double.tryParse(_mrpController.text.trim()) ?? sellingPrice;
     final stock = double.tryParse(_stockController.text.trim()) ?? 0.0;
     final alert = double.tryParse(_alertController.text.trim()) ?? 5.0;
     final discountVal = double.tryParse(_discountValueController.text.trim()) ?? 0.0;
     final maxDiscPercent = double.tryParse(_maxDiscountPercentController.text.trim()) ?? 100.0;
+    final minWeight = double.tryParse(_minSellingWeightController.text.trim());
+    final unitToSave = isSoldByWeight ? (_weightUnit == 'g' ? 'Gm' : 'Kg') : _unit;
     final tiersJson = _quantityTiers.isNotEmpty
         ? jsonEncode(_quantityTiers.map((t) => t.toMap()).toList())
         : '';
@@ -166,7 +407,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       name: _nameController.text.trim(),
       sku: _skuController.text.trim(),
       barcode: _barcodeController.text.trim(),
-      category: _categoryController.text.trim().isEmpty ? 'General' : _categoryController.text.trim(),
+      category: _selectedCategory.isEmpty ? 'General' : _selectedCategory,
       purchasePrice: purchasePrice,
       sellingPrice: sellingPrice,
       mrp: mrp,
@@ -175,7 +416,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       imageBase64: _imageBase64,
       stockQuantity: stock,
       minStockAlert: alert,
-      unit: _unit,
+      unit: unitToSave,
       hsnCode: _hsnController.text.trim(),
       supplierName: _supplierController.text.trim(),
       expiryDate: _expiryDate,
@@ -183,6 +424,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       discountValue: discountVal,
       maxDiscountPercent: maxDiscPercent,
       tierPricingJson: tiersJson,
+      isSoldByWeight: isSoldByWeight,
+      pricePerKg: isSoldByWeight ? pricePerKg : 0.0,
+      minSellingWeight: isSoldByWeight ? minWeight : null,
+      weightUnit: isSoldByWeight ? _weightUnit : 'kg',
       createdAt: widget.product?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -344,12 +589,57 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _categoryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Category',
-                            prefixIcon: Icon(Icons.category),
-                          ),
+                        child: Consumer<CategoryProvider>(
+                          builder: (context, catProv, _) {
+                            final catList = catProv.categories.map((c) => c.name).toList();
+                            if (!catList.contains(_selectedCategory) && _selectedCategory.isNotEmpty) {
+                              catList.insert(0, _selectedCategory);
+                            }
+                            final currentVal = catList.contains(_selectedCategory)
+                                ? _selectedCategory
+                                : (catList.isNotEmpty ? catList.first : 'General');
+                            return DropdownButtonFormField<String>(
+                              value: currentVal,
+                              decoration: InputDecoration(
+                                labelText: 'Category *',
+                                prefixIcon: const Icon(Icons.category),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.settings_outlined, size: 20),
+                                  tooltip: 'Manage Categories',
+                                  onPressed: _showManageCategoriesDialog,
+                                ),
+                              ),
+                              items: [
+                                ...catList.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                                const DropdownMenuItem(
+                                  value: '__create_new__',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.add_circle, color: AppTheme.primary, size: 18),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        '+ Create New Category',
+                                        style: TextStyle(
+                                          color: AppTheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val == '__create_new__') {
+                                  _showCreateCategoryDialog();
+                                } else if (val != null) {
+                                  setState(() {
+                                    _selectedCategory = val;
+                                    _categoryController.text = val;
+                                  });
+                                }
+                              },
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -403,6 +693,210 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Weight-Based Product Configuration
+                  _buildSectionTitle('Weight-Based Configuration'),
+                  const SizedBox(height: 8),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: _isSoldByWeight ? AppTheme.primary : Colors.grey.shade300,
+                        width: _isSoldByWeight ? 1.5 : 1.0,
+                      ),
+                    ),
+                    color: _isSoldByWeight ? AppTheme.primary.withOpacity(0.04) : Colors.grey.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Is this product sold based on weight?',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    setState(() {
+                                      _isSoldByWeight = true;
+                                      if (_unit == 'Pcs') _unit = _weightUnit == 'g' ? 'Gm' : 'Kg';
+                                      if (_pricePerKgController.text.isEmpty && _sellingPriceController.text.isNotEmpty) {
+                                        _pricePerKgController.text = _sellingPriceController.text;
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: _isSoldByWeight ? AppTheme.primary : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: _isSoldByWeight ? AppTheme.primary : Colors.grey.shade300,
+                                        width: _isSoldByWeight ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.scale,
+                                          color: _isSoldByWeight ? Colors.white : Colors.grey.shade700,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'YES (Sold by Weight)',
+                                          style: TextStyle(
+                                            color: _isSoldByWeight ? Colors.white : Colors.black87,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    setState(() {
+                                      _isSoldByWeight = false;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: !_isSoldByWeight ? AppTheme.primary : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: !_isSoldByWeight ? AppTheme.primary : Colors.grey.shade300,
+                                        width: !_isSoldByWeight ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.inventory_2_outlined,
+                                          color: !_isSoldByWeight ? Colors.white : Colors.grey.shade700,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'NO (Fixed Price)',
+                                          style: TextStyle(
+                                            color: !_isSoldByWeight ? Colors.white : Colors.black87,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_isSoldByWeight) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    controller: _pricePerKgController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Price per Kilogram (Rs.) *',
+                                      hintText: 'e.g. 100 for Chilli',
+                                      prefixIcon: Icon(Icons.currency_rupee),
+                                    ),
+                                    validator: (val) {
+                                      if (!_isSoldByWeight) return null;
+                                      if (val == null || val.trim().isEmpty) return 'Enter price per kg';
+                                      final num = double.tryParse(val.trim());
+                                      if (num == null || num <= 0) return 'Enter valid price > 0';
+                                      return null;
+                                    },
+                                    onChanged: (val) {
+                                      _sellingPriceController.text = val;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _weightUnit,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Weight Unit',
+                                      prefixIcon: Icon(Icons.straighten),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(value: 'kg', child: Text('kg (Kilograms)')),
+                                      DropdownMenuItem(value: 'g', child: Text('g (Grams)')),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() {
+                                          _weightUnit = val;
+                                          _unit = val == 'g' ? 'Gm' : 'Kg';
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _minSellingWeightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                labelText: 'Minimum Selling Weight (optional)',
+                                hintText: _weightUnit == 'g' ? 'e.g. 50 (in grams)' : 'e.g. 0.1 (in kg = 100g)',
+                                prefixIcon: const Icon(Icons.remove_circle_outline),
+                                suffixText: _weightUnit,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: AppTheme.primary, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Calculation Formula: Amount = (Entered Weight in Grams / 1000) × Price Per Kilogram.\nExamples: Chilli 110g @ ₹100/kg = ₹11.00 | Rice 250g @ ₹60/kg = ₹15.00 | Sugar 1.5kg @ ₹50/kg = ₹75.00',
+                                      style: TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
                   // Pricing & VAT
                   _buildSectionTitle('Pricing & VAT Details'),
                   const SizedBox(height: 12),
@@ -412,10 +906,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         child: TextFormField(
                           controller: _sellingPriceController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Selling Price (Rs.) *',
-                            prefixIcon: Icon(Icons.currency_rupee),
+                          decoration: InputDecoration(
+                            labelText: _isSoldByWeight ? 'Selling Price (per kg in Rs.) *' : 'Selling Price (Rs.) *',
+                            prefixIcon: const Icon(Icons.currency_rupee),
                           ),
+                          onChanged: (val) {
+                            if (_isSoldByWeight) {
+                              _pricePerKgController.text = val;
+                            }
+                          },
                           validator: (val) => val == null || val.trim().isEmpty ? 'Enter selling price' : null,
                         ),
                       ),

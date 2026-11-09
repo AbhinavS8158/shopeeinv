@@ -13,6 +13,7 @@ import 'providers/customer_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/shop_provider.dart';
 import 'providers/block_enforcement_provider.dart';
+import 'providers/category_provider.dart';
 import 'screens/auth/blocked_overlay_screen.dart';
 import 'screens/auth/shop_setup_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
@@ -55,6 +56,7 @@ class ShopeeInvApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => CashRegisterProvider()),
         ChangeNotifierProvider(create: (_) => ComboOfferProvider()),
+        ChangeNotifierProvider(create: (_) => CategoryProvider()),
         ChangeNotifierProxyProvider<AuthProvider, BlockEnforcementProvider>(
           create: (_) => BlockEnforcementProvider(),
           update: (context, auth, blockProv) {
