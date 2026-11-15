@@ -17,6 +17,8 @@ class CartItem {
   double? weightGrams;
   double? pricePerKg;
   String? weightDisplayUnit;
+  bool isFreePromoItem;
+  String? promoOfferId;
 
   CartItem({
     required this.product,
@@ -32,17 +34,26 @@ class CartItem {
     this.weightGrams,
     this.pricePerKg,
     this.weightDisplayUnit,
+    this.isFreePromoItem = false,
+    this.promoOfferId,
   })  : isWeightItem = isWeightItem ?? product.isWeightBased,
         customPrice = customPrice ??
             ((isWeightItem ?? product.isWeightBased)
                 ? (pricePerKg ?? product.effectivePricePerKg)
                 : product.getUnitPriceForQty(quantity)) {
-    if (!isManualDiscount) {
+    if (isFreePromoItem) {
+      discountAmount = this.customPrice * this.quantity;
+      appliedOfferTitle = appliedOfferTitle ?? 'FREE PROMO';
+    } else if (!isManualDiscount) {
       applyDefaultDiscount();
     }
   }
 
   void recalculatePricing() {
+    if (isFreePromoItem) {
+      discountAmount = unitPrice * quantity;
+      return;
+    }
     if (!isManualPrice) {
       if (isWeightItem || product.isWeightBased) {
         customPrice = pricePerKg ?? product.effectivePricePerKg;
@@ -62,6 +73,10 @@ class CartItem {
   }
 
   void applyDefaultDiscount() {
+    if (isFreePromoItem) {
+      discountAmount = unitPrice * quantity;
+      return;
+    }
     discountType = product.discountType;
     discountValue = product.discountValue;
     discountAmount = product.calculateDefaultDiscount(customPrice, quantity);
@@ -73,13 +88,14 @@ class CartItem {
 
   double get unitPrice => customPrice;
   double get grossTotal {
+    if (isFreePromoItem) return 0.0;
     final val = (unitPrice * quantity) - discountAmount;
     return val > 0 ? val : 0.0;
   }
 
   // Base taxable amount before tax
   double get taxableAmount {
-    if (grossTotal <= 0) return 0.0;
+    if (isFreePromoItem || grossTotal <= 0) return 0.0;
     if (product.gstRate <= 0) return grossTotal;
     if (isTaxIncluded) {
       // Selling price already includes tax: extract base value
@@ -92,7 +108,7 @@ class CartItem {
 
   // Tax amount for this line
   double get taxAmount {
-    if (grossTotal <= 0 || product.gstRate <= 0) return 0.0;
+    if (isFreePromoItem || grossTotal <= 0 || product.gstRate <= 0) return 0.0;
     if (isTaxIncluded) {
       // Tax included in price: extract tax amount
       return grossTotal - taxableAmount;
@@ -104,6 +120,7 @@ class CartItem {
 
   // Total amount payable for this item
   double get netTotal {
+    if (isFreePromoItem) return 0.0;
     if (isTaxIncluded) {
       // Already includes tax: do not add tax again!
       return grossTotal;
@@ -118,18 +135,18 @@ class CartItem {
     final effPerKg = pricePerKg ?? (product.pricePerKg > 0 ? product.pricePerKg : product.sellingPrice);
     return InvoiceItem(
       productId: product.id,
-      productName: product.name,
+      productName: isFreePromoItem ? '${product.name} [FREE]' : product.name,
       quantity: quantity,
       unit: isW ? (weightDisplayUnit ?? product.unit) : product.unit,
       unitPrice: unitPrice,
-      discountAmount: discountAmount,
-      gstRate: product.gstRate,
-      taxAmount: taxAmount,
-      totalAmount: netTotal,
+      discountAmount: isFreePromoItem ? (unitPrice * quantity) : discountAmount,
+      gstRate: isFreePromoItem ? 0.0 : product.gstRate,
+      taxAmount: isFreePromoItem ? 0.0 : taxAmount,
+      totalAmount: isFreePromoItem ? 0.0 : netTotal,
       isWeightBased: isW,
       weightInGrams: weightGrams ?? (isW ? quantity * 1000.0 : null),
       pricePerKg: isW ? effPerKg : null,
-      productSellingType: isW ? 'weight' : 'unit',
+      productSellingType: isFreePromoItem ? 'free_promo' : (isW ? 'weight' : 'unit'),
     );
   }
 }
@@ -152,18 +169,25 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<Product> _allAvailableProducts = [];
+  void setAvailableProducts(List<Product> products) {
+    _allAvailableProducts = products;
+  }
+
   /// Returns null on success, or an error message if out of stock
   String? addToCart(
     Product product, {
     double quantity = 1.0,
     List<ComboOffer>? comboOffers,
+    List<Product>? allProducts,
     bool enforceStock = true,
     bool? isWeightItem,
     double? weightGrams,
     double? pricePerKg,
     String? weightDisplayUnit,
   }) {
-    final index = _items.indexWhere((i) => i.product.id == product.id);
+    if (allProducts != null) _allAvailableProducts = allProducts;
+    final index = _items.indexWhere((i) => i.product.id == product.id && !i.isFreePromoItem);
     final currentQty = index >= 0 ? _items[index].quantity : 0.0;
     final targetQty = currentQty + quantity;
     final isW = isWeightItem ?? product.isWeightBased;
@@ -201,7 +225,7 @@ class CartProvider extends ChangeNotifier {
       ));
     }
     if (comboOffers != null) {
-      evaluateCombos(comboOffers);
+      evaluateCombos(comboOffers, allProducts: allProducts ?? _allAvailableProducts);
     }
     notifyListeners();
     return null;
@@ -212,15 +236,17 @@ class CartProvider extends ChangeNotifier {
     String productId,
     double quantity, {
     List<ComboOffer>? comboOffers,
+    List<Product>? allProducts,
     bool enforceStock = true,
     double? weightGrams,
     String? weightDisplayUnit,
   }) {
+    if (allProducts != null) _allAvailableProducts = allProducts;
     if (quantity <= 0) {
-      removeFromCart(productId, comboOffers: comboOffers);
+      removeFromCart(productId, comboOffers: comboOffers, allProducts: allProducts);
       return null;
     }
-    final index = _items.indexWhere((i) => i.product.id == productId);
+    final index = _items.indexWhere((i) => i.product.id == productId && !i.isFreePromoItem);
     if (index >= 0) {
       final product = _items[index].product;
       final stockStr = (product.isWeightBased || _items[index].isWeightItem)
@@ -241,7 +267,7 @@ class CartProvider extends ChangeNotifier {
       }
       _items[index].recalculatePricing();
       if (comboOffers != null) {
-        evaluateCombos(comboOffers);
+        evaluateCombos(comboOffers, allProducts: allProducts ?? _allAvailableProducts);
       }
       notifyListeners();
       return null;
@@ -300,10 +326,11 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeFromCart(String productId, {List<ComboOffer>? comboOffers}) {
-    _items.removeWhere((i) => i.product.id == productId);
+  void removeFromCart(String productId, {List<ComboOffer>? comboOffers, List<Product>? allProducts}) {
+    if (allProducts != null) _allAvailableProducts = allProducts;
+    _items.removeWhere((i) => i.product.id == productId && !i.isFreePromoItem);
     if (comboOffers != null) {
-      evaluateCombos(comboOffers);
+      evaluateCombos(comboOffers, allProducts: allProducts ?? _allAvailableProducts);
     }
     notifyListeners();
   }
@@ -315,11 +342,14 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Auto-evaluate Combo Offers
-  void evaluateCombos(List<ComboOffer> availableOffers) {
+  // Auto-evaluate Combo Offers & Promotional Pricing
+  void evaluateCombos(List<ComboOffer> availableOffers, {List<Product>? allProducts}) {
     _activeCombos.clear();
 
-    // Reset applied combo titles on items not having manual discount
+    // 1. Remove all previously auto-added free promotional items
+    _items.removeWhere((item) => item.isFreePromoItem);
+
+    // 2. Reset applied combo titles and promotional discounts on items without manual discount
     for (final item in _items) {
       if (!item.isManualDiscount && item.appliedOfferTitle != null) {
         item.appliedOfferTitle = null;
@@ -327,45 +357,123 @@ class CartProvider extends ChangeNotifier {
       }
     }
 
+    final productPool = [...(allProducts ?? []), ..._allAvailableProducts];
+
+    // 3. Process each active promotion
     for (final offer in availableOffers) {
       if (!offer.isValidNow) continue;
 
-      // Check if all items in combo are present with required quantities
-      bool matches = true;
-      double normalSubtotal = 0.0;
+      if (offer.isBuyXGetY) {
+        // --- 1. BUY X GET Y FREE ---
+        if (offer.items.isEmpty) continue;
+        final qualifyingProductId = offer.items.first.productId;
+        final buyQty = offer.buyQuantity > 0 ? offer.buyQuantity : offer.items.first.quantity;
+        final freeProdId = (offer.freeProductId != null && offer.freeProductId!.isNotEmpty)
+            ? offer.freeProductId!
+            : qualifyingProductId;
+        final freeQty = offer.freeQuantity > 0 ? offer.freeQuantity : 1.0;
 
-      for (final comboItem in offer.items) {
-        final found = _items.firstWhere(
-          (cartItem) => cartItem.product.id == comboItem.productId,
+        final qualifyingCartItem = _items.firstWhere(
+          (ci) => ci.product.id == qualifyingProductId && !ci.isFreePromoItem,
           orElse: () => CartItem(product: Product(id: '', shopId: '', name: '', sellingPrice: 0)),
         );
-        if (found.product.id.isEmpty || found.quantity < comboItem.quantity) {
-          matches = false;
-          break;
+
+        if (qualifyingCartItem.product.id.isNotEmpty && qualifyingCartItem.quantity >= buyQty) {
+          final multiples = (qualifyingCartItem.quantity / buyQty).floor();
+          if (multiples > 0) {
+            final totalFreeQty = multiples * freeQty;
+            _activeCombos.add(offer);
+            qualifyingCartItem.appliedOfferTitle = offer.title;
+
+            // Locate free product details
+            final Product freeProd;
+            final idxInPool = productPool.indexWhere((p) => p.id == freeProdId);
+            if (idxInPool >= 0) {
+              freeProd = productPool[idxInPool];
+            } else if (freeProdId == qualifyingCartItem.product.id) {
+              freeProd = qualifyingCartItem.product;
+            } else {
+              freeProd = Product(
+                id: freeProdId,
+                shopId: offer.shopId,
+                name: (offer.freeProductName != null && offer.freeProductName!.isNotEmpty)
+                    ? offer.freeProductName!
+                    : 'Free Promo Product',
+                sellingPrice: 0.0,
+                unit: qualifyingCartItem.product.unit,
+              );
+            }
+
+            // Auto-grant free promotional item to cart
+            _items.add(CartItem(
+              product: freeProd,
+              quantity: totalFreeQty,
+              isFreePromoItem: true,
+              promoOfferId: offer.id,
+              appliedOfferTitle: 'FREE: ${offer.title}',
+            ));
+          }
         }
-        normalSubtotal += found.unitPrice * comboItem.quantity;
-      }
+      } else if (offer.isQuantitySpecialPrice) {
+        // --- 2. QUANTITY-BASED SPECIAL PRICING ---
+        if (offer.items.isEmpty) continue;
+        final targetProductId = offer.items.first.productId;
+        final minQty = offer.minPurchaseQty > 0 ? offer.minPurchaseQty : offer.items.first.quantity;
+        final specialPrice = offer.specialPrice;
 
-      if (matches && normalSubtotal > 0) {
-        _activeCombos.add(offer);
+        final cartItem = _items.firstWhere(
+          (ci) => ci.product.id == targetProductId && !ci.isFreePromoItem,
+          orElse: () => CartItem(product: Product(id: '', shopId: '', name: '', sellingPrice: 0)),
+        );
 
-        // Calculate discount
-        double comboSavings = 0.0;
-        if (offer.offerType == 'fixed_price' && offer.comboPrice < normalSubtotal) {
-          comboSavings = normalSubtotal - offer.comboPrice;
-        } else if (offer.offerType == 'percentage_discount' && offer.discountPercentage > 0) {
-          comboSavings = normalSubtotal * (offer.discountPercentage / 100.0);
+        if (cartItem.product.id.isNotEmpty && cartItem.quantity >= minQty && !cartItem.isManualDiscount) {
+          final slabs = (cartItem.quantity / minQty).floor();
+          final normalPriceForSlabs = slabs * minQty * cartItem.unitPrice;
+          final promoPriceForSlabs = slabs * specialPrice;
+          final savings = normalPriceForSlabs - promoPriceForSlabs;
+
+          if (savings > 0) {
+            cartItem.discountAmount = savings;
+            cartItem.appliedOfferTitle = offer.title;
+            _activeCombos.add(offer);
+          }
+        }
+      } else if (offer.isFixedBundle || offer.isPercentageDiscount) {
+        // --- 3. BUNDLE OFFERS (Fixed Price / Discount %) ---
+        bool matches = true;
+        double normalSubtotal = 0.0;
+
+        for (final comboItem in offer.items) {
+          final found = _items.firstWhere(
+            (cartItem) => cartItem.product.id == comboItem.productId && !cartItem.isFreePromoItem,
+            orElse: () => CartItem(product: Product(id: '', shopId: '', name: '', sellingPrice: 0)),
+          );
+          if (found.product.id.isEmpty || found.quantity < comboItem.quantity) {
+            matches = false;
+            break;
+          }
+          normalSubtotal += found.unitPrice * comboItem.quantity;
         }
 
-        if (comboSavings > 0) {
-          // Proportionally distribute combo discount across participating items
-          for (final comboItem in offer.items) {
-            final cartItem = _items.firstWhere((i) => i.product.id == comboItem.productId);
-            if (!cartItem.isManualDiscount) {
-              final lineNormal = cartItem.unitPrice * comboItem.quantity;
-              final lineShare = comboSavings * (lineNormal / normalSubtotal);
-              cartItem.discountAmount = lineShare;
-              cartItem.appliedOfferTitle = offer.title;
+        if (matches && normalSubtotal > 0) {
+          _activeCombos.add(offer);
+
+          double comboSavings = 0.0;
+          if (offer.offerType == 'fixed_price' && offer.comboPrice < normalSubtotal) {
+            comboSavings = normalSubtotal - offer.comboPrice;
+          } else if (offer.offerType == 'percentage_discount' && offer.discountPercentage > 0) {
+            comboSavings = normalSubtotal * (offer.discountPercentage / 100.0);
+          }
+
+          if (comboSavings > 0) {
+            for (final comboItem in offer.items) {
+              final cartItem = _items.firstWhere((i) => i.product.id == comboItem.productId && !i.isFreePromoItem);
+              if (!cartItem.isManualDiscount) {
+                final lineNormal = cartItem.unitPrice * comboItem.quantity;
+                final lineShare = comboSavings * (lineNormal / normalSubtotal);
+                cartItem.discountAmount = lineShare;
+                cartItem.appliedOfferTitle = offer.title;
+              }
             }
           }
         }

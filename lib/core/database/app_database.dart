@@ -81,6 +81,12 @@ class AppDatabase {
           )
         ''');
       } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN buyQuantity REAL DEFAULT 1.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeProductId TEXT"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeProductName TEXT"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeQuantity REAL DEFAULT 1.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN specialPrice REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN minPurchaseQty REAL DEFAULT 1.0"); } catch (_) {}
       return db;
     } else {
       final dbPath = await getDatabasesPath();
@@ -134,6 +140,12 @@ class AppDatabase {
           )
         ''');
       } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN buyQuantity REAL DEFAULT 1.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeProductId TEXT"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeProductName TEXT"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN freeQuantity REAL DEFAULT 1.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN specialPrice REAL DEFAULT 0.0"); } catch (_) {}
+      try { await db.execute("ALTER TABLE combo_offers ADD COLUMN minPurchaseQty REAL DEFAULT 1.0"); } catch (_) {}
       return db;
     }
   }
@@ -303,6 +315,12 @@ class AppDatabase {
         comboPrice REAL DEFAULT 0.0,
         discountPercentage REAL DEFAULT 0.0,
         itemsJson TEXT NOT NULL,
+        buyQuantity REAL DEFAULT 1.0,
+        freeProductId TEXT,
+        freeProductName TEXT,
+        freeQuantity REAL DEFAULT 1.0,
+        specialPrice REAL DEFAULT 0.0,
+        minPurchaseQty REAL DEFAULT 1.0,
         startDate TEXT,
         endDate TEXT,
         isActive INTEGER DEFAULT 1,

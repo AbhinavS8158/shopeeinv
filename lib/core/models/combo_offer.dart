@@ -33,10 +33,16 @@ class ComboOffer {
   final String shopId;
   final String title;
   final String description;
-  final String offerType; // 'fixed_price', 'percentage_discount', 'buy_x_get_y'
+  final String offerType; // 'fixed_price', 'percentage_discount', 'buy_x_get_y', 'quantity_special_price'
   final double comboPrice; // for fixed_price (e.g. 2000.0)
   final double discountPercentage; // for percentage_discount (e.g. 20.0)
   final List<ComboItem> items;
+  final double buyQuantity; // For buy_x_get_y: purchase quantity X
+  final String? freeProductId; // For buy_x_get_y: free product ID
+  final String? freeProductName; // For buy_x_get_y: free product name
+  final double freeQuantity; // For buy_x_get_y: free quantity Y
+  final double specialPrice; // For quantity_special_price: e.g. 250 for 5 kg
+  final double minPurchaseQty; // For quantity_special_price: e.g. 5 kg
   final DateTime? startDate;
   final DateTime? endDate;
   final bool isActive;
@@ -52,6 +58,12 @@ class ComboOffer {
     this.comboPrice = 0.0,
     this.discountPercentage = 0.0,
     required this.items,
+    this.buyQuantity = 1.0,
+    this.freeProductId,
+    this.freeProductName,
+    this.freeQuantity = 1.0,
+    this.specialPrice = 0.0,
+    this.minPurchaseQty = 1.0,
     this.startDate,
     this.endDate,
     this.isActive = true,
@@ -59,6 +71,11 @@ class ComboOffer {
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
+
+  bool get isBuyXGetY => offerType == 'buy_x_get_y';
+  bool get isQuantitySpecialPrice => offerType == 'quantity_special_price';
+  bool get isFixedBundle => offerType == 'fixed_price';
+  bool get isPercentageDiscount => offerType == 'percentage_discount';
 
   bool get isValidNow {
     if (!isActive) return false;
@@ -78,6 +95,12 @@ class ComboOffer {
       'comboPrice': comboPrice,
       'discountPercentage': discountPercentage,
       'itemsJson': jsonEncode(items.map((i) => i.toMap()).toList()),
+      'buyQuantity': buyQuantity,
+      'freeProductId': freeProductId,
+      'freeProductName': freeProductName,
+      'freeQuantity': freeQuantity,
+      'specialPrice': specialPrice,
+      'minPurchaseQty': minPurchaseQty,
       'startDate': startDate?.toIso8601String(),
       'endDate': endDate?.toIso8601String(),
       'isActive': isActive ? 1 : 0,
@@ -107,6 +130,12 @@ class ComboOffer {
       comboPrice: (map['comboPrice'] as num?)?.toDouble() ?? 0.0,
       discountPercentage: (map['discountPercentage'] as num?)?.toDouble() ?? 0.0,
       items: itemList,
+      buyQuantity: (map['buyQuantity'] as num?)?.toDouble() ?? 1.0,
+      freeProductId: map['freeProductId'],
+      freeProductName: map['freeProductName'],
+      freeQuantity: (map['freeQuantity'] as num?)?.toDouble() ?? 1.0,
+      specialPrice: (map['specialPrice'] as num?)?.toDouble() ?? 0.0,
+      minPurchaseQty: (map['minPurchaseQty'] as num?)?.toDouble() ?? 1.0,
       startDate: map['startDate'] != null ? DateTime.tryParse(map['startDate']) : null,
       endDate: map['endDate'] != null ? DateTime.tryParse(map['endDate']) : null,
       isActive: (map['isActive'] == 1 || map['isActive'] == true),
@@ -124,6 +153,12 @@ class ComboOffer {
     double? comboPrice,
     double? discountPercentage,
     List<ComboItem>? items,
+    double? buyQuantity,
+    String? freeProductId,
+    String? freeProductName,
+    double? freeQuantity,
+    double? specialPrice,
+    double? minPurchaseQty,
     DateTime? startDate,
     DateTime? endDate,
     bool? isActive,
@@ -139,6 +174,12 @@ class ComboOffer {
       comboPrice: comboPrice ?? this.comboPrice,
       discountPercentage: discountPercentage ?? this.discountPercentage,
       items: items ?? this.items,
+      buyQuantity: buyQuantity ?? this.buyQuantity,
+      freeProductId: freeProductId ?? this.freeProductId,
+      freeProductName: freeProductName ?? this.freeProductName,
+      freeQuantity: freeQuantity ?? this.freeQuantity,
+      specialPrice: specialPrice ?? this.specialPrice,
+      minPurchaseQty: minPurchaseQty ?? this.minPurchaseQty,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       isActive: isActive ?? this.isActive,

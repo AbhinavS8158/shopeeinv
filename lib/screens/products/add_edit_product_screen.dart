@@ -1066,42 +1066,78 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: DropdownButtonFormField<String>(
-                                value: _discountType,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Discount Type',
-                                  prefixIcon: Icon(Icons.percent),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(value: 'none', child: Text('No Default Discount', overflow: TextOverflow.ellipsis)),
-                                  DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)', overflow: TextOverflow.ellipsis)),
-                                  DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)', overflow: TextOverflow.ellipsis)),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 400;
+                            if (isNarrow && _discountType != 'none') {
+                              return Column(
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    value: _discountType,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Discount Type',
+                                      prefixIcon: Icon(Icons.percent),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(value: 'none', child: Text('No Default Discount', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)', overflow: TextOverflow.ellipsis)),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _discountType = val);
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextFormField(
+                                    controller: _discountValueController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(
+                                      labelText: _discountType == 'percentage' ? 'Discount (%)' : 'Discount (Rs.)',
+                                      prefixIcon: Icon(_discountType == 'percentage' ? Icons.percent : Icons.currency_rupee),
+                                    ),
+                                  ),
                                 ],
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _discountType = val);
-                                },
-                              ),
-                            ),
-                            if (_discountType != 'none') ...[
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: TextFormField(
-                                  controller: _discountValueController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: _discountType == 'percentage' ? 'Discount (%)' : 'Discount (Rs.)',
-                                    prefixIcon: Icon(_discountType == 'percentage' ? Icons.percent : Icons.currency_rupee),
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _discountType,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Discount Type',
+                                      prefixIcon: Icon(Icons.percent),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(value: 'none', child: Text('No Default Discount', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)', overflow: TextOverflow.ellipsis)),
+                                      DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount (Rs.)', overflow: TextOverflow.ellipsis)),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _discountType = val);
+                                    },
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
+                                if (_discountType != 'none') ...[
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextFormField(
+                                      controller: _discountValueController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      decoration: InputDecoration(
+                                        labelText: _discountType == 'percentage' ? 'Discount (%)' : 'Discount (Rs.)',
+                                        prefixIcon: Icon(_discountType == 'percentage' ? Icons.percent : Icons.currency_rupee),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
                         TextFormField(

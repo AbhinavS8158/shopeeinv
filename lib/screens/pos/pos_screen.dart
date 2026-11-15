@@ -91,7 +91,7 @@ class _PosScreenState extends State<PosScreen> {
         return;
       }
       final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
-      cartProvider.addToCart(product, comboOffers: activeOffers);
+      cartProvider.addToCart(product, comboOffers: activeOffers, allProducts: productProvider.products);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1270,42 +1270,76 @@ class _PosScreenState extends State<PosScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                offer.offerType == 'fixed_price'
-                                    ? 'Special Price: Rs. ${offer.comboPrice.toStringAsFixed(2)}'
-                                    : (offer.offerType == 'percentage_discount'
-                                        ? '${offer.discountPercentage.toStringAsFixed(0)}% OFF Bundle'
-                                        : 'Buy X Get Y Free'),
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                              Expanded(
+                                child: Text(
+                                  offer.isBuyXGetY
+                                      ? 'Buy ${offer.buyQuantity.toInt()} Get ${offer.freeQuantity.toInt()}x ${offer.freeProductName ?? 'Product'} FREE'
+                                      : (offer.isQuantitySpecialPrice
+                                          ? 'Special Price: Rs. ${offer.specialPrice.toStringAsFixed(2)} for ${offer.minPurchaseQty.toInt()} Qty'
+                                          : (offer.isFixedBundle
+                                              ? 'Special Price: Rs. ${offer.comboPrice.toStringAsFixed(2)}'
+                                              : '${offer.discountPercentage.toStringAsFixed(0)}% OFF Bundle')),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
+                                ),
                               ),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add_shopping_cart, size: 16),
-                                label: const Text('Add Combo to Cart'),
+                                label: const Text('Add Offer to Cart'),
                                 style: ElevatedButton.styleFrom(
                                   visualDensity: VisualDensity.compact,
                                   backgroundColor: isApplied ? Colors.teal : AppTheme.primary,
                                 ),
                                 onPressed: () {
-                                  for (final ci in offer.items) {
-                                    final p = products.firstWhere(
-                                      (prod) => prod.id == ci.productId,
-                                      orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
-                                    );
-                                    if (p.id.isNotEmpty && ci.quantity > p.stockQuantity) {
-                                      _showOutOfStockDialog(p, requestedQty: ci.quantity);
-                                      return;
+                                  if (offer.isBuyXGetY) {
+                                    if (offer.items.isNotEmpty) {
+                                      final p = products.firstWhere(
+                                        (prod) => prod.id == offer.items.first.productId,
+                                        orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                      );
+                                      if (p.id.isNotEmpty) {
+                                        if (offer.buyQuantity > p.stockQuantity) {
+                                          _showOutOfStockDialog(p, requestedQty: offer.buyQuantity);
+                                          return;
+                                        }
+                                        cart.addToCart(p, quantity: offer.buyQuantity, comboOffers: activeOffers, allProducts: products);
+                                      }
                                     }
-                                  }
-                                  for (final ci in offer.items) {
-                                    final p = products.firstWhere(
-                                      (prod) => prod.id == ci.productId,
-                                      orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
-                                    );
-                                    if (p.id.isNotEmpty) {
-                                      cart.addToCart(p, quantity: ci.quantity);
+                                  } else if (offer.isQuantitySpecialPrice) {
+                                    if (offer.items.isNotEmpty) {
+                                      final p = products.firstWhere(
+                                        (prod) => prod.id == offer.items.first.productId,
+                                        orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                      );
+                                      if (p.id.isNotEmpty) {
+                                        if (offer.minPurchaseQty > p.stockQuantity) {
+                                          _showOutOfStockDialog(p, requestedQty: offer.minPurchaseQty);
+                                          return;
+                                        }
+                                        cart.addToCart(p, quantity: offer.minPurchaseQty, comboOffers: activeOffers, allProducts: products);
+                                      }
                                     }
+                                  } else {
+                                    for (final ci in offer.items) {
+                                      final p = products.firstWhere(
+                                        (prod) => prod.id == ci.productId,
+                                        orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                      );
+                                      if (p.id.isNotEmpty && ci.quantity > p.stockQuantity) {
+                                        _showOutOfStockDialog(p, requestedQty: ci.quantity);
+                                        return;
+                                      }
+                                    }
+                                    for (final ci in offer.items) {
+                                      final p = products.firstWhere(
+                                        (prod) => prod.id == ci.productId,
+                                        orElse: () => Product(id: '', shopId: '', name: '', sellingPrice: 0),
+                                      );
+                                      if (p.id.isNotEmpty) {
+                                        cart.addToCart(p, quantity: ci.quantity, allProducts: products);
+                                      }
+                                    }
+                                    cart.evaluateCombos(activeOffers, allProducts: products);
                                   }
-                                  cart.evaluateCombos(activeOffers);
                                   Navigator.pop(ctx);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -1604,7 +1638,7 @@ class _PosScreenState extends State<PosScreen> {
                   return;
                 }
                 final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
-                cartProvider.addToCart(p, comboOffers: activeOffers);
+                cartProvider.addToCart(p, comboOffers: activeOffers, allProducts: products);
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1709,6 +1743,7 @@ class _PosScreenState extends State<PosScreen> {
                     itemBuilder: (ctx, index) {
                       final item = cart.items[index];
                       final activeOffers = Provider.of<ComboOfferProvider>(context, listen: false).activeOffers;
+                      final products = Provider.of<ProductProvider>(context, listen: false).products;
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Column(
@@ -1731,113 +1766,181 @@ class _PosScreenState extends State<PosScreen> {
                                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
-                                          InkWell(
-                                            onTap: () => _showWeightInputDialog(item.product, existingItem: item),
-                                            borderRadius: BorderRadius.circular(4),
-                                            child: Container(
+                                          if (item.isFreePromoItem) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                               decoration: BoxDecoration(
-                                                color: Colors.teal.shade50,
+                                                color: Colors.purple.shade100,
                                                 borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: Colors.teal.shade300, width: 0.8),
+                                                border: Border.all(color: Colors.purple.shade400, width: 0.8),
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Icon(Icons.scale, size: 10, color: Colors.teal),
-                                                  const SizedBox(width: 2),
-                                                  Text(
-                                                    (item.product.isWeightBased || item.isWeightItem)
-                                                        ? (item.weightDisplayUnit == 'g' || (item.weightGrams != null && item.weightGrams! < 1000)
-                                                            ? '${(item.weightGrams ?? (item.quantity * 1000)).toStringAsFixed(0)} g'
-                                                            : '${item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg')
-                                                        : '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.product.unit}',
-                                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
-                                                  ),
-                                                ],
+                                              child: const Text(
+                                                'FREE',
+                                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.purple),
                                               ),
                                             ),
-                                          ),
+                                          ] else ...[
+                                            const SizedBox(width: 4),
+                                            InkWell(
+                                              onTap: () => _showWeightInputDialog(item.product, existingItem: item),
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.teal.shade50,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: Colors.teal.shade300, width: 0.8),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.scale, size: 10, color: Colors.teal),
+                                                    const SizedBox(width: 2),
+                                                    Text(
+                                                      (item.product.isWeightBased || item.isWeightItem)
+                                                          ? (item.weightDisplayUnit == 'g' || (item.weightGrams != null && item.weightGrams! < 1000)
+                                                              ? '${(item.weightGrams ?? (item.quantity * 1000)).toStringAsFixed(0)} g'
+                                                              : '${item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} kg')
+                                                          : '${item.quantity % 1 == 0 ? item.quantity.toInt() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), "")} ${item.product.unit}',
+                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                       Text(
-                                        (item.product.isWeightBased || item.isWeightItem)
-                                            ? '₹${item.product.effectivePricePerKg.toStringAsFixed(0)}/kg (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})'
-                                            : '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})',
-                                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                                        item.isFreePromoItem
+                                            ? 'Promotional Free Item (100% OFF)'
+                                            : ((item.product.isWeightBased || item.isWeightItem)
+                                                ? '₹${item.product.effectivePricePerKg.toStringAsFixed(0)}/kg (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})'
+                                                : '${currencyFormat.format(item.unitPrice)} / ${item.product.unit} (VAT: ${item.product.gstRate}% ${item.isTaxIncluded ? "Incl." : "Excl."})'),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: item.isFreePromoItem ? Colors.purple.shade700 : AppTheme.textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 // Discount button
-                                IconButton(
-                                  icon: Icon(
-                                    item.discountAmount > 0 ? Icons.local_offer : Icons.local_offer_outlined,
-                                    size: 18,
-                                    color: item.discountAmount > 0 ? Colors.orange : AppTheme.textSecondary,
-                                  ),
-                                  tooltip: 'Item Discount',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _showItemDiscountDialog(item),
-                                ),
-                                const SizedBox(width: 6),
-                                // Qty buttons
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline, size: 20),
-                                      onPressed: () => cart.updateQuantity(item.product.id, item.quantity - 1, comboOffers: activeOffers),
+                                if (!item.isFreePromoItem) ...[
+                                  IconButton(
+                                    icon: Icon(
+                                      item.discountAmount > 0 ? Icons.local_offer : Icons.local_offer_outlined,
+                                      size: 18,
+                                      color: item.discountAmount > 0 ? Colors.orange : AppTheme.textSecondary,
                                     ),
-                                    InkWell(
-                                      onTap: () => _showWeightInputDialog(item.product, existingItem: item),
+                                    tooltip: 'Item Discount',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () => _showItemDiscountDialog(item),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                // Qty controls
+                                if (item.isFreePromoItem)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.shade50,
                                       borderRadius: BorderRadius.circular(4),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                                        child: Text(
-                                          item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), ""),
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      border: Border.all(color: Colors.purple.shade200),
+                                    ),
+                                    child: Text(
+                                      '${item.quantity.toInt()} Free',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.purple),
+                                    ),
+                                  )
+                                else
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                        onPressed: () => cart.updateQuantity(
+                                          item.product.id,
+                                          item.quantity - 1,
+                                          comboOffers: activeOffers,
+                                          allProducts: products,
                                         ),
                                       ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, size: 20),
-                                      onPressed: () {
-                                        if (item.quantity + 1 > item.product.stockQuantity) {
-                                          _showOutOfStockDialog(item.product, requestedQty: item.quantity + 1);
-                                          return;
-                                        }
-                                        cart.updateQuantity(item.product.id, item.quantity + 1, comboOffers: activeOffers);
-                                      },
-                                    ),
-                                  ],
-                                ),
+                                      InkWell(
+                                        onTap: () => _showWeightInputDialog(item.product, existingItem: item),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                                          child: Text(
+                                            item.quantity % 1 == 0 ? item.quantity.toInt().toString() : item.quantity.toStringAsFixed(3).replaceAll(RegExp(r"0+$"), "").replaceAll(RegExp(r"\.$"), ""),
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                                        onPressed: () {
+                                          if (item.quantity + 1 > item.product.stockQuantity) {
+                                            _showOutOfStockDialog(item.product, requestedQty: item.quantity + 1);
+                                            return;
+                                          }
+                                          cart.updateQuantity(
+                                            item.product.id,
+                                            item.quantity + 1,
+                                            comboOffers: activeOffers,
+                                            allProducts: products,
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 // Item Total
                                 SizedBox(
                                   width: 80,
                                   child: Text(
-                                    currencyFormat.format(item.netTotal),
+                                    item.isFreePromoItem ? '₹0.00' : currencyFormat.format(item.netTotal),
                                     textAlign: TextAlign.right,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: item.isFreePromoItem ? Colors.green.shade700 : Colors.black87,
+                                    ),
                                   ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.close, size: 18, color: AppTheme.danger),
-                                  onPressed: () => cart.removeFromCart(item.product.id, comboOffers: activeOffers),
+                                  onPressed: () => cart.removeFromCart(
+                                    item.product.id,
+                                    comboOffers: activeOffers,
+                                    allProducts: products,
+                                  ),
                                 ),
                               ],
                             ),
                             // Promotional badges row
-                            if (item.appliedOfferTitle != null || item.discountAmount > 0 || item.isTierPricingApplied)
+                            if (item.isFreePromoItem || item.appliedOfferTitle != null || item.discountAmount > 0 || item.isTierPricingApplied)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2, left: 2),
                                 child: Wrap(
                                   spacing: 4,
                                   runSpacing: 2,
                                   children: [
-                                    if (item.appliedOfferTitle != null)
+                                    if (item.isFreePromoItem)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.purple.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.purple.shade300),
+                                        ),
+                                        child: Text(
+                                          '🎁 ${item.appliedOfferTitle ?? "FREE ITEM"} (100% OFF)',
+                                          style: TextStyle(fontSize: 10, color: Colors.purple.shade900, fontWeight: FontWeight.bold),
+                                        ),
+                                      )
+                                    else if (item.appliedOfferTitle != null)
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                         decoration: BoxDecoration(
@@ -1846,7 +1949,7 @@ class _PosScreenState extends State<PosScreen> {
                                           border: Border.all(color: Colors.green.shade300),
                                         ),
                                         child: Text(
-                                          'Combo: ${item.appliedOfferTitle} (-${currencyFormat.format(item.discountAmount)})',
+                                          'Offer: ${item.appliedOfferTitle} (-${currencyFormat.format(item.discountAmount)})',
                                           style: TextStyle(fontSize: 10, color: Colors.green.shade800, fontWeight: FontWeight.bold),
                                         ),
                                       )

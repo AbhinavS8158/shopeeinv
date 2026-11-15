@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/shop_provider.dart';
 import 'add_edit_product_screen.dart';
+import '../promotions/combo_offers_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -81,6 +82,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
       appBar: AppBar(
         title: const Text('Product Inventory'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.local_offer_outlined),
+            tooltip: 'Combo Offers & Promotions',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ComboOffersScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(_showOnlyLowStock ? Icons.warning : Icons.warning_amber_outlined),
             tooltip: 'Filter Low Stock',
